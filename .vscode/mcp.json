@@ -1,0 +1,148 @@
+{
+  "servers": {
+    // ===============================
+    // 機能拡張
+    // ===============================
+    // Thinking mode
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    // ===============================
+    // 開発・コード管理
+    // ===============================
+    // Gitリポジトリ操作
+    // "git": {
+    //   "command": "uvx",
+    //   "args": [
+    //     "--no-env-file",
+    //     "mcp-server-git"
+    //   ]
+    // },
+    // GitHubとのシームレスな統合
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ]
+    },
+    // GitHubリポジトリをLLM向けテキストに変換
+    "gitingest-mcp": {
+      "command": "uvx",
+      "args": [
+        "--no-env-file",
+        "git+https://github.com/puravparab/gitingest-mcp",
+        "gitingest-mcp"
+      ]
+    },
+    // GitHub向けDeep Research
+    "deepwiki": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://mcp.deepwiki.com/sse"
+      ]
+    },
+    // "sentry": {
+    //   "command": "npx",
+    //   "args": [
+    //     "mcp-remote@latest",
+    //     "https://mcp.sentry.dev/sse"
+    //   ]
+    // },
+    // ===============================
+    // ユーティリティ
+    // ===============================
+    // 現在時刻とタイムゾーン変換
+    "time": {
+      "command": "uvx",
+      "args": [
+        "--no-env-file",
+        "mcp-server-time",
+        "--local-timezone=Asia/Tokyo"
+      ]
+    },
+    "markitdown": {
+      "command": "uvx",
+      "args": [
+        "--no-env-file",
+        "markitdown-mcp"
+      ]
+    },
+    // チャート・グラフ生成機能
+    "mcp-server-chart": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@antv/mcp-server-chart"
+      ]
+    },
+    // Webページ・API取得機能
+    // "fetch": {
+    //   "command": "uvx",
+    //   "args": [
+    //     "--no-env-file",
+    //     "mcp-server-fetch"
+    //   ]
+    // },
+    // ファイルシステム操作（/workspaces, /home/vscode）
+    // "filesystem": {
+    //   "command": "npx",
+    //   "args": [
+    //     "-y",
+    //     "@modelcontextprotocol/server-filesystem",
+    //     "/workspaces",
+    //     "/home/vscode"
+    //   ]
+    // }
+    // ブラウザ自動化・E2Eテスト
+    // "playwright": {
+    //   "command": "npx",
+    //   "args": [
+    //     "@playwright/mcp@latest"
+    //   ]
+    // },
+    // ===============================
+    // ドキュメント・技術情報検索
+    // ===============================
+    // 最新ドキュメントを検索
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    // AWS公式ドキュメント検索
+    "awslabs.aws-documentation-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--no-env-file",
+        "awslabs.aws-documentation-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    // Microsoft公式ドキュメント検索
+    "microsoft.docs.mcp": {
+      "url": "https://learn.microsoft.com/api/mcp"
+    },
+    // Cloudflare公式ドキュメント検索
+    "cloudflare-documentation-mcp-server": {
+      "url": "https://docs.mcp.cloudflare.com/sse"
+    },
+    // // PandaCSSドキュメント
+    // "PandaCSS Docs": {
+    //   "type": "sse",
+    //   "url": "https://gitmcp.io/chakra-ui/panda"
+    // },
+    // // Serendie Design Systemドキュメント
+    // "Serendie Design System Docs": {
+    //   "type": "sse",
+    //   "url": "https://gitmcp.io/serendie/serendie"
+    // }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  // ===============
+  // 基本設定
+  // ===============
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "editor.renderControlCharacters": true,
+  "editor.renderWhitespace": "all",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    // "source.organizeImports": "explicit",
+    // "source.fixAll": "explicit"
+  },
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+  "files.eol": "\n",
+  "terminal.integrated.defaultProfile.linux": "zsh",
+  "terminal.integrated.profiles.linux": {
+    "zsh": {
+      "path": "/usr/bin/zsh"
+    }
+  },
+  "git.autofetch": true,
+  "git.openRepositoryInParentFolders": "always",
+  "telemetry.feedback.enabled": false,
+  "telemetry.telemetryLevel": "off",
+  "extensions.ignoreRecommendations": false,
+  // ===============
+  // 言語別設定
+  // ===============
+  "[javascript][javascriptreact][typescript][typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[css][postcss]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json][jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features",
+  },
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.tabSize": 4,
+  },
+  "python.defaultInterpreterPath": "backend/.venv/bin/python",
+  "continue.telemetryEnabled": false,
+}
