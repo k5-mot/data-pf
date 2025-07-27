@@ -7,12 +7,14 @@
     "--env-file",
     "./.devcontainer/devcontainer.env",
     "--name",
-    "secretbooklm-dev",
+    "datapf-dev",
+    "--add-host=host.docker.internal:host-gateway",
     "--rm"
   ],
   "features": {
     "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
-      "packages": "curl,ca-certificates,gnupg,vim,poppler-utils,ffmpeg",
+      "packages": "curl,ca-certificates,gnupg,vim",
+      // "packages": "curl,ca-certificates,gnupg,vim,procps,sudo,fzf,man-db,unzip,gnupg2,gh,iptables,ipset,iproute2,dnsutils,aggregate,jq",
       "upgradePackages": true
     },
     "ghcr.io/devcontainers/features/common-utils:2": {
@@ -24,12 +26,16 @@
     // "ghcr.io/devcontainers/features/terraform:1": {
     //   "version": "latest"
     // },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
     "ghcr.io/rocker-org/devcontainer-features/pandoc:1": {},
     "ghcr.io/devcontainers/features/aws-cli:1": {},
     "ghcr.io/devcontainers/features/azure-cli:1": {},
     "ghcr.io/joshuanianji/devcontainer-features/gcloud-cli-persistence:1": {},
     "ghcr.io/devcontainers/features/node:1": {
       "version": "lts"
+    },
+    "ghcr.io/devcontainers-extra/features/npm-packages:1": {
+      "packages": "git-cz,@anthropic-ai/claude-code"
     },
     "ghcr.io/devcontainers/features/python:1": {
       "version": "3.12"
@@ -50,7 +56,8 @@
         "VisualStudioExptTeam.vscodeintellicode", // Auto completion
         "ms-vscode.copilot-mermaid-diagram",
         "mermaidchart.vscode-mermaid-chart",
-        "hediet.vscode-drawio"
+        "hediet.vscode-drawio",
+        "anthropic.claude-code"
         // for Python
         // "charliermarsh.ruff", // Formatter/Linter
         // "ms-python.python", // Language support

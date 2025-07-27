@@ -1,0 +1,5 @@
+**/log/*
+**/logs/*
+!**/log/.gitkeep
+!**/logs/.gitkeep
+**/*.local.json

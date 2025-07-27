@@ -31,14 +31,14 @@
       ]
     },
     // GitHubリポジトリをLLM向けテキストに変換
-    "gitingest-mcp": {
-      "command": "uvx",
-      "args": [
-        "--no-env-file",
-        "git+https://github.com/puravparab/gitingest-mcp",
-        "gitingest-mcp"
-      ]
-    },
+    // "gitingest-mcp": {
+    //   "command": "uvx",
+    //   "args": [
+    //     "--no-env-file",
+    //     "git+https://github.com/puravparab/gitingest-mcp",
+    //     "gitingest-mcp"
+    //   ]
+    // },
     // GitHub向けDeep Research
     "deepwiki": {
       "command": "npx",
@@ -58,14 +58,14 @@
     // ユーティリティ
     // ===============================
     // 現在時刻とタイムゾーン変換
-    "time": {
-      "command": "uvx",
-      "args": [
-        "--no-env-file",
-        "mcp-server-time",
-        "--local-timezone=Asia/Tokyo"
-      ]
-    },
+    // "time": {
+    //   "command": "uvx",
+    //   "args": [
+    //     "--no-env-file",
+    //     "mcp-server-time",
+    //     "--local-timezone=Asia/Tokyo"
+    //   ]
+    // },
     "markitdown": {
       "command": "uvx",
       "args": [
@@ -74,13 +74,13 @@
       ]
     },
     // チャート・グラフ生成機能
-    "mcp-server-chart": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@antv/mcp-server-chart"
-      ]
-    },
+    // "mcp-server-chart": {
+    //   "command": "npx",
+    //   "args": [
+    //     "-y",
+    //     "@antv/mcp-server-chart"
+    //   ]
+    // },
     // Webページ・API取得機能
     // "fetch": {
     //   "command": "uvx",
@@ -115,25 +115,25 @@
       "url": "https://mcp.context7.com/mcp"
     },
     // AWS公式ドキュメント検索
-    "awslabs.aws-documentation-mcp-server": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": [
-        "--no-env-file",
-        "awslabs.aws-documentation-mcp-server@latest"
-      ],
-      "env": {
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      }
-    },
+    // "awslabs.aws-documentation-mcp-server": {
+    //   "type": "stdio",
+    //   "command": "uvx",
+    //   "args": [
+    //     "--no-env-file",
+    //     "awslabs.aws-documentation-mcp-server@latest"
+    //   ],
+    //   "env": {
+    //     "FASTMCP_LOG_LEVEL": "ERROR"
+    //   }
+    // },
     // Microsoft公式ドキュメント検索
-    "microsoft.docs.mcp": {
-      "url": "https://learn.microsoft.com/api/mcp"
-    },
-    // Cloudflare公式ドキュメント検索
-    "cloudflare-documentation-mcp-server": {
-      "url": "https://docs.mcp.cloudflare.com/sse"
-    },
+    // "microsoft.docs.mcp": {
+    //   "url": "https://learn.microsoft.com/api/mcp"
+    // },
+    // // Cloudflare公式ドキュメント検索
+    // "cloudflare-documentation-mcp-server": {
+    //   "url": "https://docs.mcp.cloudflare.com/sse"
+    // },
     // // PandaCSSドキュメント
     // "PandaCSS Docs": {
     //   "type": "sse",
