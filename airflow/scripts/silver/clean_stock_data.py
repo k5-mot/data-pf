@@ -121,7 +121,7 @@ def perform_basic_data_quality_checks(df: DataFrame) -> Dict[str, Any]:
 
 def detect_anomalies(df: DataFrame) -> DataFrame:
     """
-    統計的異常値検出
+    統計的異常値検出（簡略化版）
 
     Args:
         df: 検出対象DataFrame
@@ -129,38 +129,23 @@ def detect_anomalies(df: DataFrame) -> DataFrame:
     Returns:
         DataFrame: 異常値フラグ付きDataFrame
     """
-    logger.info("Detecting anomalies...")
+    logger.info("Detecting anomalies (simplified)...")
 
-    # 各銘柄・価格カラムの統計値計算
-    numeric_columns = ['open', 'high', 'low', 'close', 'adj_close', 'volume']
-
-    # 異常値フラグリスト初期化
+    # 簡単な異常値フラグを初期化（空の配列）
     df = df.withColumn("anomaly_flags", array())
 
-    for col_name in numeric_columns:
-        # 3σ法による異常値検出
-        stats = df.groupBy('symbol').agg(
-            avg(col(col_name)).alias(f'{col_name}_mean'),
-            stddev(col(col_name)).alias(f'{col_name}_stddev')
-        )
+    # 基本的な異常値のみ検出（負の価格など）
+    df = df.withColumn(
+        "anomaly_flags",
+        when(
+            (col("open") <= 0) | (col("high") <= 0) |
+            (col("low") <= 0) | (col("close") <= 0) |
+            (col("high") < col("low")),
+            array(lit("invalid_price"))
+        ).otherwise(array())
+    )
 
-        # 元データと統計値をJOIN
-        df_with_stats = df.join(stats, on='symbol')
-
-        # 異常値判定（3σを超える値）
-        anomaly_condition = (
-            spark_abs(col(col_name) - col(f'{col_name}_mean')) >
-            (3 * col(f'{col_name}_stddev'))
-        )
-
-        # 異常値フラグを追加
-        df = df_with_stats.withColumn(
-            "anomaly_flags",
-            when(anomaly_condition & col(f'{col_name}_stddev').isNotNull(),
-                 array(col("anomaly_flags").getItem(0), lit(f"{col_name}_outlier")))
-            .otherwise(col("anomaly_flags"))
-        ).drop(f'{col_name}_mean', f'{col_name}_stddev')
-
+    logger.info("Anomaly detection completed (simplified)")
     return df
 
 
@@ -290,8 +275,8 @@ def calculate_quality_score(df: DataFrame) -> DataFrame:
         (col("low") <= col("close"))
     ).cast("double")
 
-    # 異常値ペナルティ（異常値フラグの数に応じて減点）
-    anomaly_penalty = (1.0 - (col("anomaly_flags").getItem(0).isNotNull().cast("double") * 0.5))
+    # 異常値ペナルティ（簡略化）
+    anomaly_penalty = when(col("anomaly_flags").getItem(0).isNotNull(), 0.5).otherwise(1.0)
 
     # 総合品質スコア
     quality_score = (
@@ -389,6 +374,15 @@ def create_silver_schema(spark: SparkSession):
         logger.error(f"Error creating silver schema: {str(e)}")
 
 
+def create_bronze_schema(spark: SparkSession):
+    """Bronze スキーマ作成"""
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS bronze")
+        logger.info("Bronze schema created/verified")
+    except Exception as e:
+        logger.error(f"Error creating bronze schema: {str(e)}")
+
+
 def main():
     """メイン処理"""
     parser = argparse.ArgumentParser(description='Stock Data Cleaning')
@@ -402,17 +396,44 @@ def main():
     logger.info(f"Quality threshold: {args.quality_threshold}")
 
     # Sparkセッション開始（既存のセッションまたは新規作成）
-    spark = SparkSession.getActiveSession()
-    if spark is None:
-        spark = get_spark_session(SparkSession)
+    spark = SparkSession.builder.getOrCreate()
+    # spark = SparkSession.getActiveSession()
+    # if spark is None:
+    #     spark = get_spark_session(SparkSession)
 
     try:
+        # Bronze スキーマ作成
+        create_bronze_schema(spark)
         # Silver スキーマ作成
         create_silver_schema(spark)
 
-        # Bronze層データ読み込み（Delta Lake共通ライブラリ使用）
+        # Bronze層データ読み込み
         logger.info(f"Reading data from {args.input_table}")
-        bronze_df = read_from_delta_table(args.input_table, spark)
+
+        # テーブル存在確認
+        if not spark.catalog.tableExists(args.input_table):
+            logger.warning(f"Table {args.input_table} does not exist, trying to create it from Delta Lake path")
+
+            # Bronze層のDelta Lakeパスから直接読み込み
+            table_path = "s3a://lakehouse/bronze/yfinance/"
+            try:
+                bronze_df = spark.read.format("delta").load(table_path)
+                logger.info(f"Successfully read data from Delta Lake path: {table_path}")
+
+                # 今後のためにHiveテーブルを作成
+                spark.sql(f"DROP TABLE IF EXISTS {args.input_table}")
+                spark.sql(f"""
+                    CREATE TABLE {args.input_table}
+                    USING DELTA
+                    LOCATION '{table_path}'
+                """)
+                logger.info(f"Created Hive table {args.input_table} pointing to {table_path}")
+
+            except Exception as e:
+                logger.error(f"Failed to read from Delta Lake path {table_path}: {str(e)}")
+                return 1
+        else:
+            bronze_df = read_from_delta_table(args.input_table, spark)
 
         if bronze_df is None:
             logger.error(f"Failed to read data from {args.input_table}")

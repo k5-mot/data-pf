@@ -12,7 +12,7 @@ def get_spark_session(spark_session):
         .master('spark://spark-master:7077') \
         .config("hive.metastore.uris", "thrift://hive-metastore:9083")\
         .config("spark.hadoop.fs.s3a.access.key", AWS_ACCESS_KEY) \
-        .config("spark.hadoop.fs.s3a.secret.key", AWS_ACCESS_KEY) \
+        .config("spark.hadoop.fs.s3a.secret.key", AWS_SECRET_KEY) \
         .config("spark.hadoop.fs.s3a.endpoint", AWS_S3_ENDPOINT)\
         .config("spark.hadoop.fs.s3a.path.style.access", "true")\
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
@@ -21,9 +21,9 @@ def get_spark_session(spark_session):
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")\
         .config('spark.sql.warehouse.dir', f's3a://{AWS_BUCKET_NAME}/')\
-        .config('spark.jars.packages', 'org.apache.hadoop:hadoop-aws:3.3.6,com.amazonaws:aws-java-sdk-bundle:1.12.367,software.amazon.awssdk:s3:2.31.78,io.delta:delta-hive_2.12:3.3.2,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,mysql:mysql-connector-java:8.0.19')\
-        .config('spark.driver.extraClassPath', '/opt/spark/jars/hadoop-aws-3.3.6.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.367.jar:/opt/spark/jars/s3-2.31.78.jar:/opt/spark/jars/delta-hive_2.12-3.3.2.jar:/opt/spark/jars/delta-spark_2.12-3.3.2.jar:/opt/spark/jars/delta-storage-3.3.2.jar:/opt/spark/jars/mysql-connector-java-8.0.19.jar')\
-        .config('spark.executor.extraClassPath', '/opt/spark/jars/hadoop-aws-3.3.6.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.367.jar:/opt/spark/jars/s3-2.31.78.jar:/opt/spark/jars/delta-hive_2.12-3.3.2.jar:/opt/spark/jars/delta-spark_2.12-3.3.2.jar:/opt/spark/jars/delta-storage-3.3.2.jar:/opt/spark/jars/mysql-connector-java-8.0.19.jar')\
+        .config('spark.jars.packages', 'org.apache.hadoop:hadoop-aws:3.3.4,org.apache.hadoop:hadoop-common:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367,software.amazon.awssdk:s3:2.31.78,io.delta:delta-hive_2.12:3.3.2,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,mysql:mysql-connector-java:8.0.19')\
+        .config('spark.driver.extraClassPath', '/opt/spark/jars/hadoop-aws-3.3.4.jar:/opt/spark/jars/hadoop-common-3.3.4.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.367.jar:/opt/spark/jars/s3-2.31.78.jar:/opt/spark/jars/delta-hive_2.12-3.3.2.jar:/opt/spark/jars/delta-spark_2.12-3.3.2.jar:/opt/spark/jars/delta-storage-3.3.2.jar:/opt/spark/jars/mysql-connector-java-8.0.19.jar')\
+        .config('spark.executor.extraClassPath', '/opt/spark/jars/hadoop-aws-3.3.4.jar:/opt/spark/jars/hadoop-common-3.3.4.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.367.jar:/opt/spark/jars/s3-2.31.78.jar:/opt/spark/jars/delta-hive_2.12-3.3.2.jar:/opt/spark/jars/delta-spark_2.12-3.3.2.jar:/opt/spark/jars/delta-storage-3.3.2.jar:/opt/spark/jars/mysql-connector-java-8.0.19.jar')\
         .enableHiveSupport()\
         .getOrCreate()
     # spark = spark_session.builder \

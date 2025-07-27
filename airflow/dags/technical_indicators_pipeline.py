@@ -79,12 +79,21 @@ with DAG(
         application="/opt/airflow/scripts/create_schema.py",
         conn_id="spark_default",
         deploy_mode="client",
-        jars="/opt/airflow/jars/hadoop-aws-3.3.6.jar,/opt/airflow/jars/hadoop-common-3.3.6.jar,/opt/airflow/jars/hadoop-hdfs-3.3.6.jar,/opt/airflow/jars/aws-java-sdk-bundle-1.12.367.jar,/opt/airflow/jars/s3-2.31.78.jar,/opt/airflow/jars/delta-hive_2.12-3.3.2.jar,/opt/airflow/jars/delta-spark_2.12-3.3.2.jar,/opt/airflow/jars/delta-storage-3.3.2.jar,/opt/airflow/jars/mysql-connector-java-8.0.19.jar",
-        packages="org.apache.hadoop:hadoop-aws:3.3.6,org.apache.hadoop:hadoop-common:3.3.6,com.amazonaws:aws-java-sdk-bundle:1.12.367,software.amazon.awssdk:s3:2.31.78,io.delta:delta-hive_2.12:3.3.2,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,mysql:mysql-connector-java:8.0.19",
+        # jars="/opt/airflow/jars/hadoop-aws-3.3.4.jar,/opt/airflow/jars/hadoop-common-3.3.4.jar,/opt/airflow/jars/hadoop-hdfs-3.3.4.jar,/opt/airflow/jars/aws-java-sdk-bundle-1.12.367.jar,/opt/airflow/jars/s3-2.31.78.jar,/opt/airflow/jars/delta-hive_2.12-3.3.2.jar,/opt/airflow/jars/delta-spark_2.12-3.3.2.jar,/opt/airflow/jars/delta-storage-3.3.2.jar,/opt/airflow/jars/mysql-connector-java-8.0.19.jar",
+        packages="com.fasterxml.woodstox:woodstox-core:7.1.1,org.apache.hadoop:hadoop-aws:3.3.4,org.apache.hadoop:hadoop-common:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367,software.amazon.awssdk:s3:2.31.78,io.delta:delta-hive_2.12:3.3.2,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,mysql:mysql-connector-java:8.0.19",
         conf={
             "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
-            "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog"
-        }
+            "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            "spark.hadoop.fs.s3a.endpoint": "http://minio:9000",
+            "spark.hadoop.fs.s3a.access.key": "admin",
+            "spark.hadoop.fs.s3a.secret.key": "adminpass",
+            "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
+            "spark.hadoop.fs.s3a.path.style.access": "true",
+            "spark.hadoop.fs.s3a.connection.ssl.enabled": "false",
+            "spark.hadoop.fs.s3a.aws.credentials.provider": "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+            "spark.sql.warehouse.dir": "s3a://lakehouse/",
+            "hive.metastore.uris": "thrift://hive-metastore:9083"
+        },
     )
 
     # Bronze層: yfinance データ取得
@@ -93,19 +102,21 @@ with DAG(
         application='/opt/airflow/scripts/bronze/ingest_yfinance.py',
         conn_id='spark_default',
         deploy_mode='client',
-        # packages='io.delta:delta-spark_2.12:3.0.0,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367',
-        # conf={
-        #     'spark.sql.extensions': 'io.delta.sql.DeltaSparkSessionExtension',
-        #     'spark.sql.catalog.spark_catalog': 'org.apache.spark.sql.delta.catalog.DeltaCatalog',
-        #     'spark.serializer': 'org.apache.spark.serializer.KryoSerializer',
-        #     'spark.sql.adaptive.enabled': 'true',
-        #     'spark.sql.adaptive.coalescePartitions.enabled': 'true',
-        #     'spark.hadoop.fs.s3a.endpoint': 'http://minio:9000',
-        #     'spark.hadoop.fs.s3a.access.key': 'admin',
-        #     'spark.hadoop.fs.s3a.secret.key': 'adminpass',
-        #     'spark.hadoop.fs.s3a.path.style.access': 'true',
-        #     'spark.hadoop.fs.s3a.impl': 'org.apache.hadoop.fs.s3a.S3AFileSystem'
-        # },
+        # jars="/opt/airflow/jars/hadoop-aws-3.3.6.jar,/opt/airflow/jars/hadoop-common-3.3.6.jar,/opt/airflow/jars/hadoop-hdfs-3.3.6.jar,/opt/airflow/jars/aws-java-sdk-bundle-1.12.367.jar,/opt/airflow/jars/s3-2.31.78.jar,/opt/airflow/jars/delta-hive_2.12-3.3.2.jar,/opt/airflow/jars/delta-spark_2.12-3.3.2.jar,/opt/airflow/jars/delta-storage-3.3.2.jar,/opt/airflow/jars/mysql-connector-java-8.0.19.jar",
+        packages="com.fasterxml.woodstox:woodstox-core:7.1.1,org.apache.hadoop:hadoop-aws:3.3.4,org.apache.hadoop:hadoop-common:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,mysql:mysql-connector-java:8.0.19",
+        conf={
+            "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
+            "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            "spark.hadoop.fs.s3a.endpoint": "http://minio:9000",
+            "spark.hadoop.fs.s3a.access.key": "admin",
+            "spark.hadoop.fs.s3a.secret.key": "adminpass",
+            "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
+            "spark.hadoop.fs.s3a.path.style.access": "true",
+            "spark.hadoop.fs.s3a.connection.ssl.enabled": "false",
+            "spark.hadoop.fs.s3a.aws.credentials.provider": "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+            "spark.sql.warehouse.dir": "s3a://lakehouse/",
+            "hive.metastore.uris": "thrift://hive-metastore:9083"
+        },
         application_args=[
             '--symbols', 'AAPL,7203.T,6758.T',  # Apple, Toyota, Sony
             '--period', '30d',  # 過去30日分
@@ -136,17 +147,19 @@ with DAG(
         application='/opt/airflow/scripts/silver/clean_stock_data.py',
         conn_id='spark_default',
         deploy_mode='client',
-        packages='io.delta:delta-spark_2.12:3.0.0,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367',
+        packages="com.fasterxml.woodstox:woodstox-core:7.1.1,org.apache.hadoop:hadoop-aws:3.3.4,org.apache.hadoop:hadoop-common:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,mysql:mysql-connector-java:8.0.19",
         conf={
-            'spark.sql.extensions': 'io.delta.sql.DeltaSparkSessionExtension',
-            'spark.sql.catalog.spark_catalog': 'org.apache.spark.sql.delta.catalog.DeltaCatalog',
-            'spark.serializer': 'org.apache.spark.serializer.KryoSerializer',
-            'spark.sql.adaptive.enabled': 'true',
-            'spark.hadoop.fs.s3a.endpoint': 'http://minio:9000',
-            'spark.hadoop.fs.s3a.access.key': 'admin',
-            'spark.hadoop.fs.s3a.secret.key': 'adminpass',
-            'spark.hadoop.fs.s3a.path.style.access': 'true',
-            'spark.hadoop.fs.s3a.impl': 'org.apache.hadoop.fs.s3a.S3AFileSystem'
+            "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
+            "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            "spark.hadoop.fs.s3a.endpoint": "http://minio:9000",
+            "spark.hadoop.fs.s3a.access.key": "admin",
+            "spark.hadoop.fs.s3a.secret.key": "adminpass",
+            "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
+            "spark.hadoop.fs.s3a.path.style.access": "true",
+            "spark.hadoop.fs.s3a.connection.ssl.enabled": "false",
+            "spark.hadoop.fs.s3a.aws.credentials.provider": "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+            "spark.sql.warehouse.dir": "s3a://lakehouse/",
+            "hive.metastore.uris": "thrift://hive-metastore:9083"
         },
         application_args=[
             '--input_table', 'bronze.yfinance_raw',
@@ -176,17 +189,19 @@ with DAG(
         application='/opt/airflow/scripts/gold/calculate_technical_features.py',
         conn_id='spark_default',
         deploy_mode='client',
-        packages='io.delta:delta-spark_2.12:3.0.0,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367',
+        packages="com.fasterxml.woodstox:woodstox-core:7.1.1,org.apache.hadoop:hadoop-aws:3.3.4,org.apache.hadoop:hadoop-common:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,mysql:mysql-connector-java:8.0.19",
         conf={
-            'spark.sql.extensions': 'io.delta.sql.DeltaSparkSessionExtension',
-            'spark.sql.catalog.spark_catalog': 'org.apache.spark.sql.delta.catalog.DeltaCatalog',
-            'spark.serializer': 'org.apache.spark.serializer.KryoSerializer',
-            'spark.sql.adaptive.enabled': 'true',
-            'spark.hadoop.fs.s3a.endpoint': 'http://minio:9000',
-            'spark.hadoop.fs.s3a.access.key': 'admin',
-            'spark.hadoop.fs.s3a.secret.key': 'adminpass',
-            'spark.hadoop.fs.s3a.path.style.access': 'true',
-            'spark.hadoop.fs.s3a.impl': 'org.apache.hadoop.fs.s3a.S3AFileSystem'
+            "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
+            "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            "spark.hadoop.fs.s3a.endpoint": "http://minio:9000",
+            "spark.hadoop.fs.s3a.access.key": "admin",
+            "spark.hadoop.fs.s3a.secret.key": "adminpass",
+            "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
+            "spark.hadoop.fs.s3a.path.style.access": "true",
+            "spark.hadoop.fs.s3a.connection.ssl.enabled": "false",
+            "spark.hadoop.fs.s3a.aws.credentials.provider": "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+            "spark.sql.warehouse.dir": "s3a://lakehouse/",
+            "hive.metastore.uris": "thrift://hive-metastore:9083"
         },
         application_args=[
             '--input_table', 'silver.stock_prices_clean',
@@ -215,17 +230,19 @@ with DAG(
         application='/opt/airflow/scripts/quality/validate_technical_features.py',
         conn_id='spark_default',
         deploy_mode='client',
-        packages='io.delta:delta-spark_2.12:3.0.0,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367',
+        packages="com.fasterxml.woodstox:woodstox-core:7.1.1,org.apache.hadoop:hadoop-aws:3.3.4,org.apache.hadoop:hadoop-common:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,mysql:mysql-connector-java:8.0.19",
         conf={
-            'spark.sql.extensions': 'io.delta.sql.DeltaSparkSessionExtension',
-            'spark.sql.catalog.spark_catalog': 'org.apache.spark.sql.delta.catalog.DeltaCatalog',
-            'spark.serializer': 'org.apache.spark.serializer.KryoSerializer',
-            'spark.sql.adaptive.enabled': 'true',
-            'spark.hadoop.fs.s3a.endpoint': 'http://minio:9000',
-            'spark.hadoop.fs.s3a.access.key': 'admin',
-            'spark.hadoop.fs.s3a.secret.key': 'adminpass',
-            'spark.hadoop.fs.s3a.path.style.access': 'true',
-            'spark.hadoop.fs.s3a.impl': 'org.apache.hadoop.fs.s3a.S3AFileSystem'
+            "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
+            "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            "spark.hadoop.fs.s3a.endpoint": "http://minio:9000",
+            "spark.hadoop.fs.s3a.access.key": "admin",
+            "spark.hadoop.fs.s3a.secret.key": "adminpass",
+            "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
+            "spark.hadoop.fs.s3a.path.style.access": "true",
+            "spark.hadoop.fs.s3a.connection.ssl.enabled": "false",
+            "spark.hadoop.fs.s3a.aws.credentials.provider": "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+            "spark.sql.warehouse.dir": "s3a://lakehouse/",
+            "hive.metastore.uris": "thrift://hive-metastore:9083"
         },
         application_args=[
             '--input_table', 'gold.technical_features',

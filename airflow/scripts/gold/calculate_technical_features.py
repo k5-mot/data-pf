@@ -439,17 +439,42 @@ def main():
     logger.info(f"Indicators: {indicators}")
 
     # Sparkセッション開始（既存のセッションまたは新規作成）
-    spark = SparkSession.getActiveSession()
-    if spark is None:
-        spark = get_spark_session(SparkSession)
+    # spark = SparkSession.getActiveSession()
+    # if spark is None:
+    #     spark = get_spark_session(SparkSession)
+    spark = SparkSession.builder.getOrCreate()
 
     try:
         # Gold スキーマ作成
         create_gold_schema(spark)
+        # Silver スキーマ作成（Delta Lakeパスからテーブル作成時に必要）
+        try:
+            spark.sql("CREATE SCHEMA IF NOT EXISTS silver")
+            spark.sql("USE silver")  # スキーマを明示的に選択
+            logger.info("Silver schema created/verified (for Delta Lake table creation)")
+        except Exception as e:
+            logger.error(f"Error creating silver schema: {str(e)}")
 
         # Silver層データ読み込み（Delta Lake共通ライブラリ使用）
         logger.info(f"Reading data from {args.input_table}")
-        silver_df = read_from_delta_table(args.input_table, spark)
+        if not spark.catalog.tableExists(args.input_table):
+            logger.warning(f"Table {args.input_table} does not exist, trying to create it from Delta Lake path")
+            table_path = "s3a://lakehouse/silver/stock_prices/"
+            try:
+                silver_df = spark.read.format("delta").load(table_path)
+                logger.info(f"Successfully read data from Delta Lake path: {table_path}")
+                spark.sql(f"DROP TABLE IF EXISTS {args.input_table}")
+                spark.sql(f"""
+                    CREATE TABLE {args.input_table}
+                    USING DELTA
+                    LOCATION '{table_path}'
+                """)
+                logger.info(f"Created Hive table {args.input_table} pointing to {table_path}")
+            except Exception as e:
+                logger.error(f"Failed to read from Delta Lake path {table_path}: {str(e)}")
+                return 1
+        else:
+            silver_df = read_from_delta_table(args.input_table, spark)
 
         if silver_df is None:
             logger.error(f"Failed to read data from {args.input_table}")
