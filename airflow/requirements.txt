@@ -7,6 +7,21 @@ pydantic>=2.0.0
 mlflow==2.3.2
 boto3==1.16.46
 yfinance
+
+# Apache Airflow providers
+apache-airflow-providers-apache-hive
+apache-airflow-providers-apache-spark
+apache-airflow-providers-celery
+apache-airflow-providers-common-compat
+apache-airflow-providers-common-io
+apache-airflow-providers-common-messaging
+apache-airflow-providers-common-sql
+apache-airflow-providers-jdbc
+apache-airflow-providers-mysql
+apache-airflow-providers-postgres
+apache-airflow-providers-redis
+apache-airflow-providers-ssh
+
 # apache-airflow-providers-airbyte
 # apache-airflow-providers-alibaba
 # apache-airflow-providers-amazon
@@ -16,7 +31,7 @@ yfinance
 # apache-airflow-providers-apache-druid
 # apache-airflow-providers-apache-flink
 # apache-airflow-providers-apache-hdfs
-apache-airflow-providers-apache-hive
+# apache-airflow-providers-apache-hive
 # apache-airflow-providers-apache-iceberg
 # apache-airflow-providers-apache-impala
 # apache-airflow-providers-apache-kafka
@@ -24,20 +39,20 @@ apache-airflow-providers-apache-hive
 # apache-airflow-providers-apache-livy
 # apache-airflow-providers-apache-pig
 # apache-airflow-providers-apache-pinot
-apache-airflow-providers-apache-spark
+# apache-airflow-providers-apache-spark
 # apache-airflow-providers-apache-tinkerpop
 # apache-airflow-providers-apprise
 # apache-airflow-providers-arangodb
 # apache-airflow-providers-asana
 # apache-airflow-providers-atlassian-jira
-apache-airflow-providers-celery
+# apache-airflow-providers-celery
 # apache-airflow-providers-cloudant
 # apache-airflow-providers-cncf-kubernetes
 # apache-airflow-providers-cohere
-apache-airflow-providers-common-compat
-apache-airflow-providers-common-io
-apache-airflow-providers-common-messaging
-apache-airflow-providers-common-sql
+# apache-airflow-providers-common-compat
+# apache-airflow-providers-common-io
+# apache-airflow-providers-common-messaging
+# apache-airflow-providers-common-sql
 # apache-airflow-providers-databricks
 # apache-airflow-providers-datadog
 # apache-airflow-providers-dbt-cloud
@@ -58,14 +73,14 @@ apache-airflow-providers-common-sql
 # apache-airflow-providers-http
 # apache-airflow-providers-imap
 # apache-airflow-providers-influxdb
-apache-airflow-providers-jdbc
+# apache-airflow-providers-jdbc
 # apache-airflow-providers-jenkins
 # apache-airflow-providers-microsoft-azure
 # apache-airflow-providers-microsoft-mssql
 # apache-airflow-providers-microsoft-psrp
 # apache-airflow-providers-microsoft-winrm
 # apache-airflow-providers-mongo
-apache-airflow-providers-mysql
+# apache-airflow-providers-mysql
 # apache-airflow-providers-neo4j
 # apache-airflow-providers-odbc
 # apache-airflow-providers-openai
@@ -78,10 +93,10 @@ apache-airflow-providers-mysql
 # apache-airflow-providers-papermill
 # apache-airflow-providers-pgvector
 # apache-airflow-providers-pinecone
-apache-airflow-providers-postgres
+# apache-airflow-providers-postgres
 # apache-airflow-providers-presto
 # apache-airflow-providers-qdrant
-apache-airflow-providers-redis
+# apache-airflow-providers-redis
 # apache-airflow-providers-salesforce
 # apache-airflow-providers-samba
 # apache-airflow-providers-segment
@@ -92,7 +107,7 @@ apache-airflow-providers-redis
 # apache-airflow-providers-smtp
 # apache-airflow-providers-snowflake
 # apache-airflow-providers-sqlite
-apache-airflow-providers-ssh
+# apache-airflow-providers-ssh
 # apache-airflow-providers-standard
 # apache-airflow-providers-tableau
 # apache-airflow-providers-telegram

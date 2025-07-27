@@ -9,3 +9,4 @@ fi
 # Start the Hive Metastore service directly without schema initialization
 echo "Starting Hive Metastore Server with MySQL backend..."
 exec /opt/hive/bin/hive --skiphadoopversion --skiphbasecp --service metastore
+# exec /opt/hive/bin/hive --skiphbasecp --service metastore

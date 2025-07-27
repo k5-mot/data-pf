@@ -3,6 +3,8 @@
     "allow": [
       "Bash(*)",
       "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(curl:*)",
       "WebFetch(*)"
     ],
     "deny": []

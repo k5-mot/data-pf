@@ -7,27 +7,47 @@ AWS_BUCKET_NAME = 'lakehouse'
 
 
 def get_spark_session(spark_session):
-
     spark = spark_session.builder \
         .appName('Ingest checkin table into bronze') \
         .master('spark://spark-master:7077') \
         .config("hive.metastore.uris", "thrift://hive-metastore:9083")\
         .config("spark.hadoop.fs.s3a.access.key", AWS_ACCESS_KEY) \
-        .config("spark.hadoop.fs.s3a.secret.key", AWS_SECRET_KEY) \
+        .config("spark.hadoop.fs.s3a.secret.key", AWS_ACCESS_KEY) \
         .config("spark.hadoop.fs.s3a.endpoint", AWS_S3_ENDPOINT)\
         .config("spark.hadoop.fs.s3a.path.style.access", "true")\
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")\
         .config('spark.hadoop.fs.s3a.aws.credentials.provider', 'org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider')\
-        .config('spark.sql.warehouse.dir', f's3a://{AWS_BUCKET_NAME}/')\
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")\
-        .config('spark.jars', '/opt/airflow/jars/aws-java-sdk-bundle-1.12.367.jar,/opt/airflow/jars/delta-spark_2.12-3.3.2.jar,/opt/airflow/jars/delta-storage-3.3.2.jar,/opt/airflow/jars/hadoop-aws-3.2.3.jar,/opt/airflow/jars/mysql-connector-java-8.0.19.jar,/opt/airflow/jars/delta-hive_2.12-3.3.2.jar')\
-        .config('spark.driver.extraClassPath', '/opt/airflow/jars/aws-java-sdk-bundle-1.12.367.jar:/opt/airflow/jars/delta-spark_2.12-3.3.2.jar:/opt/airflow/jars/delta-storage-3.3.2.jar:/opt/airflow/jars/hadoop-aws-3.2.3.jar:/opt/airflow/jars/mysql-connector-java-8.0.19.jar:/opt/airflow/jars/delta-hive_2.12-3.3.2.jar')\
-        .config('spark.executor.extraClassPath', '/opt/airflow/jars/aws-java-sdk-bundle-1.12.367.jar:/opt/airflow/jars/delta-spark_2.12-3.3.2.jar:/opt/airflow/jars/delta-storage-3.3.2.jar:/opt/airflow/jars/hadoop-aws-3.2.3.jar:/opt/airflow/jars/mysql-connector-java-8.0.19.jar:/opt/airflow/jars/delta-hive_2.12-3.3.2.jar')\
+        .config('spark.sql.warehouse.dir', f's3a://{AWS_BUCKET_NAME}/')\
+        .config('spark.jars.packages', 'org.apache.hadoop:hadoop-aws:3.3.6,com.amazonaws:aws-java-sdk-bundle:1.12.367,software.amazon.awssdk:s3:2.31.78,io.delta:delta-hive_2.12:3.3.2,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,mysql:mysql-connector-java:8.0.19')\
+        .config('spark.driver.extraClassPath', '/opt/spark/jars/hadoop-aws-3.3.6.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.367.jar:/opt/spark/jars/s3-2.31.78.jar:/opt/spark/jars/delta-hive_2.12-3.3.2.jar:/opt/spark/jars/delta-spark_2.12-3.3.2.jar:/opt/spark/jars/delta-storage-3.3.2.jar:/opt/spark/jars/mysql-connector-java-8.0.19.jar')\
+        .config('spark.executor.extraClassPath', '/opt/spark/jars/hadoop-aws-3.3.6.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.367.jar:/opt/spark/jars/s3-2.31.78.jar:/opt/spark/jars/delta-hive_2.12-3.3.2.jar:/opt/spark/jars/delta-spark_2.12-3.3.2.jar:/opt/spark/jars/delta-storage-3.3.2.jar:/opt/spark/jars/mysql-connector-java-8.0.19.jar')\
         .enableHiveSupport()\
         .getOrCreate()
+    # spark = spark_session.builder \
+    #     .appName('Ingest checkin table into bronze') \
+    #     .master('spark://spark-master:7077') \
+    #     .config("spark.hadoop.fs.s3a.access.key", AWS_ACCESS_KEY) \
+    #     .config("spark.hadoop.fs.s3a.secret.key", AWS_SECRET_KEY) \
+    #     .config("spark.hadoop.fs.s3a.endpoint", AWS_S3_ENDPOINT)\
+    #     .config("spark.hadoop.fs.s3a.path.style.access", "true")\
+    #     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+    #     .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")\
+    #     .config('spark.hadoop.fs.s3a.aws.credentials.provider', 'org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider')\
+    #     .config('spark.sql.warehouse.dir', f's3a://{AWS_BUCKET_NAME}/')\
+    #     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    #     .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")\
+    #     .config('spark.jars.packages', 'com.amazon.deequ:deequ:2.0.11-spark-3.5,com.amazonaws:aws-java-sdk-bundle:1.12.367,io.delta:delta-hive_2.12:3.3.2,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,org.apache.hadoop:hadoop-aws:3.2.3,mysql:mysql-connector-java:8.0.19')\
+    #     .config('spark.driver.extraClassPath', '/opt/spark/jars/deequ-2.0.11-spark-3.5.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.367.jar:/opt/spark/jars/delta-hive_2.12-3.3.2.jar:/opt/spark/jars/delta-spark_2.12-3.3.2.jar:/opt/spark/jars/delta-storage-3.3.2.jar:/opt/spark/jars/hadoop-aws-3.2.3.jar:/opt/spark/jars/mysql-connector-java-8.0.19.jar')\
+    #     .config('spark.executor.extraClassPath', '/opt/spark/jars/deequ-2.0.11-spark-3.5.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.367.jar:/opt/spark/jars/delta-hive_2.12-3.3.2.jar:/opt/spark/jars/delta-spark_2.12-3.3.2.jar:/opt/spark/jars/delta-storage-3.3.2.jar:/opt/spark/jars/hadoop-aws-3.2.3.jar:/opt/spark/jars/mysql-connector-java-8.0.19.jar')\
+    #     .enableHiveSupport()\
+    #     .getOrCreate()
 
+
+
+        # .config('spark.jars.packages', 'io.delta:delta-spark_2.12:3.2.1,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367')\
 
 
 #   .config('spark.jars', '/opt/airflow/jars/aws-java-sdk-bundle-1.12.367.jar,/opt/airflow/jars/delta-core_2.12-2.4.0.jar,/opt/airflow/jars/delta-storage-3.2.0.jar,/opt/airflow/jars/hadoop-aws-3.2.3.jar,/opt/airflow/jars/mysql-connector-java-8.0.19.jar')\
