@@ -422,6 +422,10 @@ spark = SparkSession.builder \
 - **取得データ**: 株価（OHLCV）、分割・配当情報
 - **更新頻度**: 日次（市場終了後）
 - **対象銘柄**: 日本株式（当初はApple [AAPL]から開始、拡張予定）
+- **データフロー**:
+  1. yfinance API → DAG:ingest_raw_data → lakehouse.bronze.yfinance
+  2. lakehouse.bronze.yfinance → DAG:clean_and_validate_data → lakehouse.silver.yfinance  
+  3. lakehouse.silver.yfinance → DAG:aggregate_business_metrics → lakehouse.gold.technical_indicators
 - **テクニカル指標**: SMA、EMA、RSI、MACD、ボリンジャーバンド、ATR
 
 #### 5.1.2 EDINET API - 企業財務データ
