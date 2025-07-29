@@ -1,0 +1,74 @@
+[project]
+name = "airflow"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "apache-airflow>=3.0.3",
+  "apache-airflow-providers-apache-hive>=9.1.1",
+  "apache-airflow-providers-apache-spark>=5.3.1",
+  "apache-airflow-providers-celery>=3.12.1",
+  "apache-airflow-providers-common-compat>=1.7.2",
+  "apache-airflow-providers-common-io>=1.6.1",
+  "apache-airflow-providers-common-messaging>=1.0.4",
+  "apache-airflow-providers-common-sql>=1.27.3",
+  "apache-airflow-providers-jdbc>=5.2.1",
+  "apache-airflow-providers-mysql>=6.3.2",
+  "apache-airflow-providers-postgres>=6.2.1",
+  "apache-airflow-providers-redis>=4.1.1",
+  "apache-airflow-providers-ssh>=4.1.1",
+  "apache-airflow-providers-standard>=1.4.1",
+  "boto3>=1.39.15",
+  "dbt-core>=1.10.5",
+  "dbt-spark>=1.9.3",
+  "delta-spark>=4.0.0",
+  "findspark>=2.0.1",
+  "mlflow>=3.1.4",
+  "pandas>=2.3.1",
+  "yfinance>=0.2.65",
+]
+
+[dependency-groups]
+dev = ["pyright>=1.1.403", "pytest>=8.4.1", "ruff>=0.12.5"]
+
+
+[tool.ruff]
+indent-width = 4
+line-length = 88
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  # "AIR",    # Airflow
+  "ERA",    # eradicate
+  "D100",   # undocumented-public-module
+  "D101",   # undocumented-public-class
+  "D104",   # undocumented-public-package
+  "COM812",
+]
+fixable = ["ALL"]
+unfixable = [
+  "F401", # unused-import
+  "F841", # unused-variable
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10 # maximum complexity
+
+[tool.ruff.lint.pydocstyle]
+convention = "google" # docstring style
+
+[tool.ruff.format]
+docstring-code-format = true
+indent-style = "space"
+line-ending = "lf"
+quote-style = "double"
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = [
+  "F401", # unused-import
+]
+
+[tool.pyright]
+typeCheckingMode = "basic"

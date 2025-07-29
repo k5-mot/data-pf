@@ -1,22 +1,10 @@
 <configuration>
-    <!-- <property>
-        <name>metastore.thrift.uris</name>
-        <value>thrift://lakehouse-hive:9083</value>
-        <description>Thrift URI for the remote metastore. Used by metastore client to connect to remote metastore.</description>
-    </property>
+    <!-- Metastore Database Configuration -->
     <property>
-        <name>metastore.task.threads.always</name>
-        <value>org.apache.hadoop.hive.metastore.events.EventCleanerTask</value>
-    </property>
-    <property>
-        <name>metastore.expression.proxy</name>
-        <value>org.apache.hadoop.hive.metastore.DefaultPartitionExpressionProxy</value>
-    </property> -->
-    <!-- <property>
         <name>javax.jdo.option.ConnectionDriverName</name>
         <value>com.mysql.cj.jdbc.Driver</value>
-    </property> -->
-    <!-- <property>
+    </property>
+    <property>
         <name>javax.jdo.option.ConnectionURL</name>
         <value>jdbc:mysql://lakehouse-hive-mysql:3306/metastore</value>
     </property>
@@ -27,8 +15,20 @@
     <property>
         <name>javax.jdo.option.ConnectionPassword</name>
         <value>hivepass</value>
-    </property> -->
-    <!-- <property>
+    </property>
+
+    <!-- Metastore Server Configuration -->
+    <property>
+        <name>hive.metastore.uris</name>
+        <value>thrift://lakehouse-hive:9083</value>
+    </property>
+    <property>
+        <name>hive.metastore.warehouse.dir</name>
+        <value>s3a://lakehouse</value>
+    </property>
+
+    <!-- S3/MinIO Configuration -->
+    <property>
         <name>fs.s3a.access.key</name>
         <value>minio</value>
     </property>
@@ -47,5 +47,15 @@
     <property>
         <name>fs.s3a.connection.ssl.enabled</name>
         <value>false</value>
-    </property> -->
+    </property>
+
+    <!-- Schema validation -->
+    <property>
+        <name>hive.metastore.schema.verification</name>
+        <value>true</value>
+    </property>
+    <property>
+        <name>hive.metastore.schema.verification.record.version</name>
+        <value>true</value>
+    </property>
 </configuration>

@@ -13,7 +13,7 @@
   ],
   "features": {
     "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
-      "packages": "curl,ca-certificates,gnupg,vim",
+      "packages": "build-essential,curl,ca-certificates,gnupg,vim,pkg-config,default-mysql-client-core,default-libmysqlclient-dev",
       // "packages": "curl,ca-certificates,gnupg,vim,procps,sudo,fzf,man-db,unzip,gnupg2,gh,iptables,ipset,iproute2,dnsutils,aggregate,jq",
       "upgradePackages": true
     },
@@ -57,14 +57,13 @@
         "ms-vscode.copilot-mermaid-diagram",
         "mermaidchart.vscode-mermaid-chart",
         "hediet.vscode-drawio",
-        "anthropic.claude-code"
         // for Python
-        // "charliermarsh.ruff", // Formatter/Linter
-        // "ms-python.python", // Language support
-        // "ms-python.vscode-pylance", // Language server (Type checker)
-        // "ms-python.debugpy", // Debugger
-        // "njpwerner.autodocstring", // Docstring support
-        // // for React.js/Next.js/Typescript
+        "charliermarsh.ruff", // Formatter/Linter
+        "ms-python.python", // Language support
+        "ms-python.vscode-pylance", // Language server (Type checker)
+        "ms-python.debugpy", // Debugger
+        "njpwerner.autodocstring", // Docstring support
+        // for React.js/Next.js/Typescript
         // "dbaeumer.vscode-eslint", // Linter
         // "esbenp.prettier-vscode", // Formatter
         // "xabikos.JavaScriptSnippets", // Snippets for JavaScript
@@ -76,14 +75,15 @@
         // "yoavbls.pretty-ts-errors", // Pretty Error messages for Typescript
         // "wix.vscode-import-cost", // Package Size Checker for npm
         // // "nextnav.nextnav", // Route Visualizer for Next.js
-        // // for MISC
-        // // "ms-azuretools.vscode-docker", // Docker Support
-        // "tamasfe.even-better-toml", // TOML support
-        // "mhutchie.git-graph", // Git support
-        // "ms-vsliveshare.vsliveshare", // Live Share
-        // // for LLM
-        // // "continue.continue", // Coding Assistants by LLM
-        // "saoudrizwan.claude-dev" // Coding Agent by LLM
+        // for MISC
+        "ms-azuretools.vscode-docker", // Docker Support
+        "tamasfe.even-better-toml", // TOML support
+        "mhutchie.git-graph", // Git support
+        "ms-vsliveshare.vsliveshare", // Live Share
+        // for LLM
+        // "continue.continue", // Coding Assistants by LLM
+        // "saoudrizwan.claude-dev", // Coding Agent by LLM
+        "anthropic.claude-code"
       ]
     }
   }

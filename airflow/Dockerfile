@@ -53,9 +53,6 @@ RUN cp hadoop-hdfs-3.3.6.jar            /opt/airflow/jars/
 RUN cp mysql-connector-java-8.0.19.jar  /opt/airflow/jars/
 
 USER airflow
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-ENV SPARK_MASTER_URL=spark://spark-master:7077
-ENV SPARK_DEPLOY_MODE=client
 RUN pip install --no-cache-dir -r /requirements.txt
 
 # Fix SparkSubmitHook master URL parsing to include spark:// protocol prefix

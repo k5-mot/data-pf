@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Silver層: 株価データクリーニングスクリプト
+"""Silver層: 株価データクリーニングスクリプト
 
 Bronze層の生データをクリーニングし、品質チェック後にSilver層に保存
 
@@ -10,58 +9,88 @@ Usage:
 
 import argparse
 import logging
-import sys
-from datetime import datetime
-from typing import Dict, Any, Tuple
-
-from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql.functions import (
-    col, when, isnan, isnull, count, avg, stddev, abs as spark_abs,
-    percentile_approx, lit, current_timestamp, monotonically_increasing_id,
-    regexp_replace, upper, trim, split, explode, array, struct,
-    year, month, dayofmonth, date_format
-)
-from pyspark.sql.types import StructType, StructField, StringType, DateType, DecimalType, LongType, TimestampType, DoubleType, ArrayType
 
 # 既存のspark_session.pyとDelta Lake共通ライブラリを使用
-import sys
 import os
-sys.path.append('/opt/airflow/scripts')
+import sys
+from datetime import datetime
+from typing import Any, Dict, Tuple
+
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import abs as spark_abs
+from pyspark.sql.functions import (
+    array,
+    avg,
+    col,
+    count,
+    current_timestamp,
+    date_format,
+    dayofmonth,
+    explode,
+    isnan,
+    isnull,
+    lit,
+    monotonically_increasing_id,
+    month,
+    percentile_approx,
+    regexp_replace,
+    split,
+    stddev,
+    struct,
+    trim,
+    upper,
+    when,
+    year,
+)
+from pyspark.sql.types import (
+    ArrayType,
+    DateType,
+    DecimalType,
+    DoubleType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+)
+
+sys.path.append("/opt/airflow/scripts")
+from common.delta_utils import read_from_delta_table, write_to_delta_table
 from common.spark_session import get_spark_session
-from common.delta_utils import write_to_delta_table, read_from_delta_table
 
 # ログ設定
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
-
-
 
 
 def define_clean_stock_schema() -> StructType:
     """クリーン株価データのスキーマ定義"""
-    return StructType([
-        StructField("symbol", StringType(), False),
-        StructField("trade_date", DateType(), False),
-        StructField("open_price", DecimalType(10, 2), True),
-        StructField("high_price", DecimalType(10, 2), True),
-        StructField("low_price", DecimalType(10, 2), True),
-        StructField("close_price", DecimalType(10, 2), True),
-        StructField("adjusted_close", DecimalType(10, 2), True),
-        StructField("volume", LongType(), True),
-        StructField("split_ratio", DecimalType(10, 6), True),
-        StructField("dividend_amount", DecimalType(10, 4), True),
-        StructField("currency", StringType(), True),
-        StructField("exchange", StringType(), True),
-        StructField("data_quality_score", DoubleType(), True),
-        StructField("anomaly_flags", ArrayType(StringType()), True),
-        StructField("validation_timestamp", TimestampType(), False),
-        StructField("source_record_id", StringType(), True)
-    ])
+    return StructType(
+        [
+            StructField("symbol", StringType(), False),
+            StructField("trade_date", DateType(), False),
+            StructField("open_price", DecimalType(10, 2), True),
+            StructField("high_price", DecimalType(10, 2), True),
+            StructField("low_price", DecimalType(10, 2), True),
+            StructField("close_price", DecimalType(10, 2), True),
+            StructField("adjusted_close", DecimalType(10, 2), True),
+            StructField("volume", LongType(), True),
+            StructField("split_ratio", DecimalType(10, 6), True),
+            StructField("dividend_amount", DecimalType(10, 4), True),
+            StructField("currency", StringType(), True),
+            StructField("exchange", StringType(), True),
+            StructField("data_quality_score", DoubleType(), True),
+            StructField("anomaly_flags", ArrayType(StringType()), True),
+            StructField("validation_timestamp", TimestampType(), False),
+            StructField("source_record_id", StringType(), True),
+        ]
+    )
 
 
-def perform_basic_data_quality_checks(df: DataFrame) -> Dict[str, Any]:
-    """
-    基本的なデータ品質チェック
+def perform_basic_data_quality_checks(df: DataFrame) -> dict[str, Any]:
+    """基本的なデータ品質チェック
 
     Args:
         df: チェック対象DataFrame
@@ -78,29 +107,27 @@ def perform_basic_data_quality_checks(df: DataFrame) -> Dict[str, Any]:
 
     # 各カラムの欠損値率
     null_counts = {}
-    numeric_columns = ['open', 'high', 'low', 'close', 'adj_close', 'volume']
+    numeric_columns = ["open", "high", "low", "close", "adj_close", "volume"]
 
     for col_name in numeric_columns:
         null_count = df.filter(
-            col(col_name).isNull() |
-            isnan(col(col_name)) |
-            (col(col_name) <= 0)
+            col(col_name).isNull() | isnan(col(col_name)) | (col(col_name) <= 0)
         ).count()
         null_counts[col_name] = null_count / total_count
 
     # 論理整合性チェック
     logical_errors = df.filter(
-        (col('high') < col('low')) |
-        (col('high') < col('open')) |
-        (col('high') < col('close')) |
-        (col('low') > col('open')) |
-        (col('low') > col('close'))
+        (col("high") < col("low"))
+        | (col("high") < col("open"))
+        | (col("high") < col("close"))
+        | (col("low") > col("open"))
+        | (col("low") > col("close"))
     ).count()
 
     logical_error_rate = logical_errors / total_count
 
     # 重複レコードチェック
-    unique_count = df.select('symbol', 'date').distinct().count()
+    unique_count = df.select("symbol", "date").distinct().count()
     duplicate_rate = (total_count - unique_count) / total_count
 
     # 全体品質スコア計算
@@ -112,7 +139,7 @@ def perform_basic_data_quality_checks(df: DataFrame) -> Dict[str, Any]:
         "null_rates": null_counts,
         "logical_error_rate": logical_error_rate,
         "duplicate_rate": duplicate_rate,
-        "quality_score": quality_score
+        "quality_score": quality_score,
     }
 
     logger.info(f"Quality metrics: {metrics}")
@@ -120,8 +147,7 @@ def perform_basic_data_quality_checks(df: DataFrame) -> Dict[str, Any]:
 
 
 def detect_anomalies(df: DataFrame) -> DataFrame:
-    """
-    統計的異常値検出（簡略化版）
+    """統計的異常値検出（簡略化版）
 
     Args:
         df: 検出対象DataFrame
@@ -138,11 +164,13 @@ def detect_anomalies(df: DataFrame) -> DataFrame:
     df = df.withColumn(
         "anomaly_flags",
         when(
-            (col("open") <= 0) | (col("high") <= 0) |
-            (col("low") <= 0) | (col("close") <= 0) |
-            (col("high") < col("low")),
-            array(lit("invalid_price"))
-        ).otherwise(array())
+            (col("open") <= 0)
+            | (col("high") <= 0)
+            | (col("low") <= 0)
+            | (col("close") <= 0)
+            | (col("high") < col("low")),
+            array(lit("invalid_price")),
+        ).otherwise(array()),
     )
 
     logger.info("Anomaly detection completed (simplified)")
@@ -150,8 +178,7 @@ def detect_anomalies(df: DataFrame) -> DataFrame:
 
 
 def apply_data_cleaning_rules(df: DataFrame) -> DataFrame:
-    """
-    データクリーニングルール適用
+    """データクリーニングルール適用
 
     Args:
         df: クリーニング対象DataFrame
@@ -167,44 +194,39 @@ def apply_data_cleaning_rules(df: DataFrame) -> DataFrame:
         when(col("high") < col("low"), col("low"))
         .when(col("high") < col("open"), col("open"))
         .when(col("high") < col("close"), col("close"))
-        .otherwise(col("high"))
+        .otherwise(col("high")),
     )
 
     # 2. ゼロ・負の値を欠損値に変換
-    price_columns = ['open', 'high', 'low', 'close', 'adj_close']
+    price_columns = ["open", "high", "low", "close", "adj_close"]
     for col_name in price_columns:
         df = df.withColumn(
-            col_name,
-            when(col(col_name) <= 0, None).otherwise(col(col_name))
+            col_name, when(col(col_name) <= 0, None).otherwise(col(col_name))
         )
 
     # 3. 出来高のゼロ値は妥当（祝日等）なのでそのまま保持
-    df = df.withColumn(
-        "volume",
-        when(col("volume") < 0, 0).otherwise(col("volume"))
-    )
+    df = df.withColumn("volume", when(col("volume") < 0, 0).otherwise(col("volume")))
 
     # 4. 分割・配当情報のクリーニング
     df = df.withColumn(
         "splits",
         when(col("splits").isNull(), 1.0)
         .when(col("splits") <= 0, 1.0)
-        .otherwise(col("splits"))
+        .otherwise(col("splits")),
     )
 
     df = df.withColumn(
         "dividends",
         when(col("dividends").isNull(), 0.0)
         .when(col("dividends") < 0, 0.0)
-        .otherwise(col("dividends"))
+        .otherwise(col("dividends")),
     )
 
     return df
 
 
 def standardize_metadata(df: DataFrame) -> DataFrame:
-    """
-    メタデータ標準化
+    """メタデータ標準化
 
     Args:
         df: 標準化対象DataFrame
@@ -220,7 +242,7 @@ def standardize_metadata(df: DataFrame) -> DataFrame:
         when(col("symbol").endswith(".T"), "JPY")
         .when(col("symbol").endswith(".HK"), "HKD")
         .when(col("symbol").endswith(".L"), "GBP")
-        .otherwise("USD")
+        .otherwise("USD"),
     )
 
     # 取引所情報推定
@@ -229,15 +251,14 @@ def standardize_metadata(df: DataFrame) -> DataFrame:
         when(col("symbol").endswith(".T"), "TSE")
         .when(col("symbol").endswith(".HK"), "HKEX")
         .when(col("symbol").endswith(".L"), "LSE")
-        .otherwise("NASDAQ")
+        .otherwise("NASDAQ"),
     )
 
     return df
 
 
 def calculate_quality_score(df: DataFrame) -> DataFrame:
-    """
-    各レコードの品質スコア計算
+    """各レコードの品質スコア計算
 
     Args:
         df: スコア計算対象DataFrame
@@ -249,18 +270,18 @@ def calculate_quality_score(df: DataFrame) -> DataFrame:
 
     # 各チェック項目の重み
     weights = {
-        'price_completeness': 0.4,  # 価格データ完整性
-        'volume_completeness': 0.2,  # 出来高完整性
-        'logical_consistency': 0.3,  # 論理整合性
-        'anomaly_penalty': 0.1      # 異常値ペナルティ
+        "price_completeness": 0.4,  # 価格データ完整性
+        "volume_completeness": 0.2,  # 出来高完整性
+        "logical_consistency": 0.3,  # 論理整合性
+        "anomaly_penalty": 0.1,  # 異常値ペナルティ
     }
 
     # 価格データ完整性（主要価格フィールドの欠損なし）
     price_complete = (
-        col("open").isNotNull() &
-        col("high").isNotNull() &
-        col("low").isNotNull() &
-        col("close").isNotNull()
+        col("open").isNotNull()
+        & col("high").isNotNull()
+        & col("low").isNotNull()
+        & col("close").isNotNull()
     ).cast("double")
 
     # 出来高データ完整性
@@ -268,22 +289,24 @@ def calculate_quality_score(df: DataFrame) -> DataFrame:
 
     # 論理整合性（high >= low, high >= open, high >= close, low <= open, low <= close）
     logical_consistent = (
-        (col("high") >= col("low")) &
-        (col("high") >= col("open")) &
-        (col("high") >= col("close")) &
-        (col("low") <= col("open")) &
-        (col("low") <= col("close"))
+        (col("high") >= col("low"))
+        & (col("high") >= col("open"))
+        & (col("high") >= col("close"))
+        & (col("low") <= col("open"))
+        & (col("low") <= col("close"))
     ).cast("double")
 
     # 異常値ペナルティ（簡略化）
-    anomaly_penalty = when(col("anomaly_flags").getItem(0).isNotNull(), 0.5).otherwise(1.0)
+    anomaly_penalty = when(col("anomaly_flags").getItem(0).isNotNull(), 0.5).otherwise(
+        1.0
+    )
 
     # 総合品質スコア
     quality_score = (
-        price_complete * weights['price_completeness'] +
-        volume_complete * weights['volume_completeness'] +
-        logical_consistent * weights['logical_consistency'] +
-        anomaly_penalty * weights['anomaly_penalty']
+        price_complete * weights["price_completeness"]
+        + volume_complete * weights["volume_completeness"]
+        + logical_consistent * weights["logical_consistency"]
+        + anomaly_penalty * weights["anomaly_penalty"]
     )
 
     df = df.withColumn("data_quality_score", quality_score)
@@ -292,8 +315,7 @@ def calculate_quality_score(df: DataFrame) -> DataFrame:
 
 
 def transform_to_silver_schema(df: DataFrame) -> DataFrame:
-    """
-    Silver層スキーマに変換
+    """Silver層スキーマに変換
 
     Args:
         df: 変換対象DataFrame
@@ -320,15 +342,14 @@ def transform_to_silver_schema(df: DataFrame) -> DataFrame:
         col("data_quality_score"),
         col("anomaly_flags"),
         current_timestamp().alias("validation_timestamp"),
-        col("source_file").alias("source_record_id")
+        col("source_file").alias("source_record_id"),
     )
 
     return silver_df
 
 
 def save_to_silver_table(spark: SparkSession, df: DataFrame, table_name: str) -> bool:
-    """
-    Silver層テーブルに保存
+    """Silver層テーブルに保存
 
     Args:
         spark: SparkSession
@@ -344,8 +365,9 @@ def save_to_silver_table(spark: SparkSession, df: DataFrame, table_name: str) ->
             return False
 
         # パーティションカラム追加
-        df_with_partitions = df.withColumn("year", year("trade_date")) \
-                              .withColumn("month", month("trade_date"))
+        df_with_partitions = df.withColumn("year", year("trade_date")).withColumn(
+            "month", month("trade_date")
+        )
 
         # Delta Lake共通ライブラリを使用
         table_path = "s3a://lakehouse/silver/stock_prices/"
@@ -357,11 +379,11 @@ def save_to_silver_table(spark: SparkSession, df: DataFrame, table_name: str) ->
             mode="merge",
             partition_cols=["year", "month", "symbol"],
             merge_keys=["symbol", "trade_date"],
-            spark=spark
+            spark=spark,
         )
 
     except Exception as e:
-        logger.error(f"Error saving to silver table: {str(e)}")
+        logger.error(f"Error saving to silver table: {e!s}")
         return False
 
 
@@ -371,7 +393,7 @@ def create_silver_schema(spark: SparkSession):
         spark.sql("CREATE SCHEMA IF NOT EXISTS silver")
         logger.info("Silver schema created/verified")
     except Exception as e:
-        logger.error(f"Error creating silver schema: {str(e)}")
+        logger.error(f"Error creating silver schema: {e!s}")
 
 
 def create_bronze_schema(spark: SparkSession):
@@ -380,19 +402,26 @@ def create_bronze_schema(spark: SparkSession):
         spark.sql("CREATE SCHEMA IF NOT EXISTS bronze")
         logger.info("Bronze schema created/verified")
     except Exception as e:
-        logger.error(f"Error creating bronze schema: {str(e)}")
+        logger.error(f"Error creating bronze schema: {e!s}")
 
 
 def main():
     """メイン処理"""
-    parser = argparse.ArgumentParser(description='Stock Data Cleaning')
-    parser.add_argument('--input_table', required=True, help='入力テーブル名')
-    parser.add_argument('--output_table', required=True, help='出力テーブル名')
-    parser.add_argument('--quality_threshold', type=float, default=0.8, help='品質閾値 (デフォルト: 0.8)')
+    parser = argparse.ArgumentParser(description="Stock Data Cleaning")
+    parser.add_argument("--input_table", required=True, help="入力テーブル名")
+    parser.add_argument("--output_table", required=True, help="出力テーブル名")
+    parser.add_argument(
+        "--quality_threshold",
+        type=float,
+        default=0.8,
+        help="品質閾値 (デフォルト: 0.8)",
+    )
 
     args = parser.parse_args()
 
-    logger.info(f"Starting stock data cleaning: {args.input_table} -> {args.output_table}")
+    logger.info(
+        f"Starting stock data cleaning: {args.input_table} -> {args.output_table}"
+    )
     logger.info(f"Quality threshold: {args.quality_threshold}")
 
     # Sparkセッション開始（既存のセッションまたは新規作成）
@@ -412,13 +441,17 @@ def main():
 
         # テーブル存在確認
         if not spark.catalog.tableExists(args.input_table):
-            logger.warning(f"Table {args.input_table} does not exist, trying to create it from Delta Lake path")
+            logger.warning(
+                f"Table {args.input_table} does not exist, trying to create it from Delta Lake path"
+            )
 
             # Bronze層のDelta Lakeパスから直接読み込み
             table_path = "s3a://lakehouse/bronze/yfinance/"
             try:
                 bronze_df = spark.read.format("delta").load(table_path)
-                logger.info(f"Successfully read data from Delta Lake path: {table_path}")
+                logger.info(
+                    f"Successfully read data from Delta Lake path: {table_path}"
+                )
 
                 # 今後のためにHiveテーブルを作成
                 spark.sql(f"DROP TABLE IF EXISTS {args.input_table}")
@@ -427,10 +460,12 @@ def main():
                     USING DELTA
                     LOCATION '{table_path}'
                 """)
-                logger.info(f"Created Hive table {args.input_table} pointing to {table_path}")
+                logger.info(
+                    f"Created Hive table {args.input_table} pointing to {table_path}"
+                )
 
             except Exception as e:
-                logger.error(f"Failed to read from Delta Lake path {table_path}: {str(e)}")
+                logger.error(f"Failed to read from Delta Lake path {table_path}: {e!s}")
                 return 1
         else:
             bronze_df = read_from_delta_table(args.input_table, spark)
@@ -439,12 +474,13 @@ def main():
             logger.error(f"Failed to read data from {args.input_table}")
             return 1
 
-
         # データ品質チェック
         quality_metrics = perform_basic_data_quality_checks(bronze_df)
 
         if quality_metrics["quality_score"] < args.quality_threshold:
-            logger.warning(f"Data quality score {quality_metrics['quality_score']:.3f} below threshold {args.quality_threshold}")
+            logger.warning(
+                f"Data quality score {quality_metrics['quality_score']:.3f} below threshold {args.quality_threshold}"
+            )
 
         # データクリーニング実行
         cleaned_df = apply_data_cleaning_rules(bronze_df)
@@ -462,7 +498,9 @@ def main():
         silver_df = transform_to_silver_schema(scored_df)
 
         # 品質フィルタリング（必要に応じて）
-        filtered_df = silver_df.filter(col("data_quality_score") >= args.quality_threshold)
+        filtered_df = silver_df.filter(
+            col("data_quality_score") >= args.quality_threshold
+        )
 
         logger.info(f"Records after quality filtering: {filtered_df.count()}")
 
@@ -485,12 +523,11 @@ def main():
             result_stats.show()
 
             return 0
-        else:
-            logger.error("Failed to save to silver table")
-            return 1
+        logger.error("Failed to save to silver table")
+        return 1
 
     except Exception as e:
-        logger.error(f"Fatal error in cleaning process: {str(e)}")
+        logger.error(f"Fatal error in cleaning process: {e!s}")
         return 1
 
     finally:

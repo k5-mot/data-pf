@@ -1,3 +1,10 @@
+
+```bash
+docker compose up -d airflow-init && docker compose up -d --build
+
+docker compose ps --all --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+```
+
 ## References
 
 - [harrydevforlife/building-lakehouse](https://github.com/harrydevforlife/building-lakehouse)

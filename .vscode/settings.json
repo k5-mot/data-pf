@@ -8,8 +8,8 @@
   "editor.renderWhitespace": "all",
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    // "source.organizeImports": "explicit",
-    // "source.fixAll": "explicit"
+    "source.organizeImports": "explicit",
+    "source.fixAll": "explicit"
   },
   "files.insertFinalNewline": true,
   "files.trimFinalNewlines": true,
@@ -42,6 +42,6 @@
     "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.tabSize": 4,
   },
-  "python.defaultInterpreterPath": "backend/.venv/bin/python",
+  "python.defaultInterpreterPath": "airflow/.venv/bin/python",
   "continue.telemetryEnabled": false,
 }

@@ -45,6 +45,7 @@ RUN cp mysql-connector-java-8.0.19/mysql-connector-java-8.0.19.jar ${HIVE_HOME}/
 # Copy custom configuration files
 COPY entrypoint.sh /entrypoint.sh
 COPY metastore-site.xml /opt/hive/conf/metastore-site.xml
+COPY hive-site.xml /opt/hive/conf/hive-site.xml
 
 # Set proper permissions
 RUN chown -R hive:hive /opt/hive/lib/ && \
