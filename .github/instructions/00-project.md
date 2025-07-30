@@ -161,9 +161,6 @@ docker-compose exec spark-master spark-submit --master spark://spark-master:7077
 
 ### Sparkセッション設定パターン
 ```python
-from airflow.scripts.spark_session import get_spark_session
-spark = get_spark_session(SparkSession)
-# または
 spark = SparkSession.builder.getOrCreate()  # SparkSubmitOperator使用時
 ```
 

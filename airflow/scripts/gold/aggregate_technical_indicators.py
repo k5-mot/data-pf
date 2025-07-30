@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Gold層: テクニカル指標計算スクリプト
+"""Gold層: テクニカル指標計算スクリプト
 
 Silver層のクリーン株価データから各種テクニカル指標を計算し、Gold層に保存
 
@@ -10,67 +9,96 @@ Usage:
 
 import argparse
 import logging
-import sys
 import math
-from typing import List, Dict, Any
-
-from pyspark.sql import SparkSession, DataFrame, Window
-from pyspark.sql.functions import (
-    col, lag, lead, avg, sum as spark_sum, count, stddev, min as spark_min, max as spark_max,
-    when, isnan, isnull, current_timestamp, lit, exp, sqrt, abs as spark_abs,
-    row_number, rank, dense_rank, ntile, first, last, greatest, least
-)
-from pyspark.sql.types import StructType, StructField, StringType, DateType, DecimalType, TimestampType
 
 # 既存のspark_session.pyとDelta Lake共通ライブラリを使用
-import sys
 import os
-sys.path.append('/opt/airflow/scripts')
-from common.spark_session import get_spark_session
-from common.delta_utils import write_to_delta_table, read_from_delta_table
+import sys
+from typing import Any, Dict, List
+
+from pyspark.sql import DataFrame, SparkSession, Window
+from pyspark.sql.functions import abs as spark_abs
+from pyspark.sql.functions import (
+    avg,
+    col,
+    count,
+    current_timestamp,
+    dense_rank,
+    exp,
+    first,
+    greatest,
+    isnan,
+    isnull,
+    lag,
+    last,
+    lead,
+    least,
+    lit,
+    ntile,
+    rank,
+    row_number,
+    sqrt,
+    stddev,
+    when,
+)
+from pyspark.sql.functions import max as spark_max
+from pyspark.sql.functions import min as spark_min
+from pyspark.sql.functions import sum as spark_sum
+from pyspark.sql.types import (
+    DateType,
+    DecimalType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+)
+
+sys.path.append("/opt/airflow/scripts")
+from common.delta_utils import read_from_delta_table, write_to_delta_table
 
 # ログ設定
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
-
-
 def define_technical_features_schema() -> StructType:
-    """テクニカル指標スキーマ定義"""
-    return StructType([
-        StructField("symbol", StringType(), False),
-        StructField("feature_date", DateType(), False),
-        # 移動平均系
-        StructField("sma_5d", DecimalType(10, 2), True),
-        StructField("sma_20d", DecimalType(10, 2), True),
-        StructField("sma_50d", DecimalType(10, 2), True),
-        StructField("ema_12d", DecimalType(10, 2), True),
-        StructField("ema_26d", DecimalType(10, 2), True),
-        # オシレーター系
-        StructField("rsi_14d", DecimalType(6, 2), True),
-        StructField("macd_line", DecimalType(10, 4), True),
-        StructField("macd_signal", DecimalType(10, 4), True),
-        StructField("macd_histogram", DecimalType(10, 4), True),
-        # ボラティリティ系
-        StructField("bollinger_upper", DecimalType(10, 2), True),
-        StructField("bollinger_middle", DecimalType(10, 2), True),
-        StructField("bollinger_lower", DecimalType(10, 2), True),
-        StructField("atr_14d", DecimalType(10, 4), True),
-        # 出来高系
-        StructField("volume_sma_20d", DecimalType(15, 0), True),
-        StructField("volume_ratio", DecimalType(6, 2), True),
-        # 価格パターン
-        StructField("price_momentum_5d", DecimalType(6, 4), True),
-        StructField("price_momentum_20d", DecimalType(6, 4), True),
-        StructField("volatility_20d", DecimalType(6, 4), True),
-        StructField("feature_timestamp", TimestampType(), False)
-    ])
+    """テクニカル指標スキーマ定義."""
+    return StructType(
+        [
+            StructField("symbol", StringType(), False),
+            StructField("feature_date", DateType(), False),
+            # 移動平均系
+            StructField("sma_5d", DecimalType(10, 2), True),
+            StructField("sma_20d", DecimalType(10, 2), True),
+            StructField("sma_50d", DecimalType(10, 2), True),
+            StructField("ema_12d", DecimalType(10, 2), True),
+            StructField("ema_26d", DecimalType(10, 2), True),
+            # オシレーター系
+            StructField("rsi_14d", DecimalType(6, 2), True),
+            StructField("macd_line", DecimalType(10, 4), True),
+            StructField("macd_signal", DecimalType(10, 4), True),
+            StructField("macd_histogram", DecimalType(10, 4), True),
+            # ボラティリティ系
+            StructField("bollinger_upper", DecimalType(10, 2), True),
+            StructField("bollinger_middle", DecimalType(10, 2), True),
+            StructField("bollinger_lower", DecimalType(10, 2), True),
+            StructField("atr_14d", DecimalType(10, 4), True),
+            # 出来高系
+            StructField("volume_sma_20d", DecimalType(15, 0), True),
+            StructField("volume_ratio", DecimalType(6, 2), True),
+            # 価格パターン
+            StructField("price_momentum_5d", DecimalType(6, 4), True),
+            StructField("price_momentum_20d", DecimalType(6, 4), True),
+            StructField("volatility_20d", DecimalType(6, 4), True),
+            StructField("feature_timestamp", TimestampType(), False),
+        ]
+    )
 
 
 def calculate_moving_averages(df: DataFrame) -> DataFrame:
-    """
-    移動平均系指標計算
+    """移動平均系指標計算
 
     Args:
         df: 株価データ
@@ -88,9 +116,11 @@ def calculate_moving_averages(df: DataFrame) -> DataFrame:
     sma_20_window = window_spec.rowsBetween(-19, 0)  # 20日間
     sma_50_window = window_spec.rowsBetween(-49, 0)  # 50日間
 
-    df = df.withColumn("sma_5d", avg("close_price").over(sma_5_window)) \
-           .withColumn("sma_20d", avg("close_price").over(sma_20_window)) \
-           .withColumn("sma_50d", avg("close_price").over(sma_50_window))
+    df = (
+        df.withColumn("sma_5d", avg("close_price").over(sma_5_window))
+        .withColumn("sma_20d", avg("close_price").over(sma_20_window))
+        .withColumn("sma_50d", avg("close_price").over(sma_50_window))
+    )
 
     # EMA (Exponential Moving Average) 計算用関数
     # EMA = (当日価格 × 平滑化定数) + (前日EMA × (1 - 平滑化定数))
@@ -105,24 +135,33 @@ def calculate_moving_averages(df: DataFrame) -> DataFrame:
     ema_26_window = window_spec.rowsBetween(Window.unboundedPreceding, 0)
 
     # 簡易EMA計算（初期値はSMAで代用）
-    df = df.withColumn("ema_12d",
-                      when(row_number().over(window_spec) <= 12,
-                           avg("close_price").over(window_spec.rowsBetween(-11, 0)))
-                      .otherwise(col("close_price") * alpha_12 +
-                               lag("ema_12d").over(window_spec) * (1 - alpha_12)))
+    df = df.withColumn(
+        "ema_12d",
+        when(
+            row_number().over(window_spec) <= 12,
+            avg("close_price").over(window_spec.rowsBetween(-11, 0)),
+        ).otherwise(
+            col("close_price") * alpha_12
+            + lag("ema_12d").over(window_spec) * (1 - alpha_12)
+        ),
+    )
 
-    df = df.withColumn("ema_26d",
-                      when(row_number().over(window_spec) <= 26,
-                           avg("close_price").over(window_spec.rowsBetween(-25, 0)))
-                      .otherwise(col("close_price") * alpha_26 +
-                               lag("ema_26d").over(window_spec) * (1 - alpha_26)))
+    df = df.withColumn(
+        "ema_26d",
+        when(
+            row_number().over(window_spec) <= 26,
+            avg("close_price").over(window_spec.rowsBetween(-25, 0)),
+        ).otherwise(
+            col("close_price") * alpha_26
+            + lag("ema_26d").over(window_spec) * (1 - alpha_26)
+        ),
+    )
 
     return df
 
 
 def calculate_rsi(df: DataFrame, period: int = 14) -> DataFrame:
-    """
-    RSI (Relative Strength Index) 計算
+    """RSI (Relative Strength Index) 計算
 
     Args:
         df: 株価データ
@@ -136,21 +175,26 @@ def calculate_rsi(df: DataFrame, period: int = 14) -> DataFrame:
     window_spec = Window.partitionBy("symbol").orderBy("trade_date")
 
     # 前日との価格差分
-    df = df.withColumn("price_diff", col("close_price") - lag("close_price").over(window_spec))
+    df = df.withColumn(
+        "price_diff", col("close_price") - lag("close_price").over(window_spec)
+    )
 
     # 上昇・下降分離
-    df = df.withColumn("gain", when(col("price_diff") > 0, col("price_diff")).otherwise(0)) \
-           .withColumn("loss", when(col("price_diff") < 0, -col("price_diff")).otherwise(0))
+    df = df.withColumn(
+        "gain", when(col("price_diff") > 0, col("price_diff")).otherwise(0)
+    ).withColumn("loss", when(col("price_diff") < 0, -col("price_diff")).otherwise(0))
 
     # 平均上昇・下降計算
-    rsi_window = window_spec.rowsBetween(-(period-1), 0)
+    rsi_window = window_spec.rowsBetween(-(period - 1), 0)
 
-    df = df.withColumn("avg_gain", avg("gain").over(rsi_window)) \
-           .withColumn("avg_loss", avg("loss").over(rsi_window))
+    df = df.withColumn("avg_gain", avg("gain").over(rsi_window)).withColumn(
+        "avg_loss", avg("loss").over(rsi_window)
+    )
 
     # RSI計算
-    df = df.withColumn("rs", col("avg_gain") / col("avg_loss")) \
-           .withColumn("rsi_14d", 100 - (100 / (1 + col("rs"))))
+    df = df.withColumn("rs", col("avg_gain") / col("avg_loss")).withColumn(
+        "rsi_14d", 100 - (100 / (1 + col("rs")))
+    )
 
     # 不要な中間カラム削除
     df = df.drop("price_diff", "gain", "loss", "avg_gain", "avg_loss", "rs")
@@ -159,8 +203,7 @@ def calculate_rsi(df: DataFrame, period: int = 14) -> DataFrame:
 
 
 def calculate_macd(df: DataFrame) -> DataFrame:
-    """
-    MACD (Moving Average Convergence Divergence) 計算
+    """MACD (Moving Average Convergence Divergence) 計算
 
     Args:
         df: EMA付き株価データ
@@ -178,11 +221,16 @@ def calculate_macd(df: DataFrame) -> DataFrame:
     # シグナルライン = MACDラインの9日EMA
     alpha_9 = 2.0 / (9 + 1)
 
-    df = df.withColumn("macd_signal",
-                      when(row_number().over(window_spec) <= 9,
-                           avg("macd_line").over(window_spec.rowsBetween(-8, 0)))
-                      .otherwise(col("macd_line") * alpha_9 +
-                               lag("macd_signal").over(window_spec) * (1 - alpha_9)))
+    df = df.withColumn(
+        "macd_signal",
+        when(
+            row_number().over(window_spec) <= 9,
+            avg("macd_line").over(window_spec.rowsBetween(-8, 0)),
+        ).otherwise(
+            col("macd_line") * alpha_9
+            + lag("macd_signal").over(window_spec) * (1 - alpha_9)
+        ),
+    )
 
     # MACDヒストグラム = MACDライン - シグナルライン
     df = df.withColumn("macd_histogram", col("macd_line") - col("macd_signal"))
@@ -190,9 +238,10 @@ def calculate_macd(df: DataFrame) -> DataFrame:
     return df
 
 
-def calculate_bollinger_bands(df: DataFrame, period: int = 20, std_dev: float = 2.0) -> DataFrame:
-    """
-    ボリンジャーバンド計算
+def calculate_bollinger_bands(
+    df: DataFrame, period: int = 20, std_dev: float = 2.0
+) -> DataFrame:
+    """ボリンジャーバンド計算
 
     Args:
         df: 株価データ
@@ -205,7 +254,7 @@ def calculate_bollinger_bands(df: DataFrame, period: int = 20, std_dev: float = 
     logger.info(f"Calculating Bollinger Bands ({period} days, {std_dev} std)...")
 
     window_spec = Window.partitionBy("symbol").orderBy("trade_date")
-    bollinger_window = window_spec.rowsBetween(-(period-1), 0)
+    bollinger_window = window_spec.rowsBetween(-(period - 1), 0)
 
     # 中央線（移動平均）
     df = df.withColumn("bollinger_middle", avg("close_price").over(bollinger_window))
@@ -214,10 +263,11 @@ def calculate_bollinger_bands(df: DataFrame, period: int = 20, std_dev: float = 
     df = df.withColumn("price_stddev", stddev("close_price").over(bollinger_window))
 
     # 上部・下部バンド
-    df = df.withColumn("bollinger_upper",
-                      col("bollinger_middle") + (col("price_stddev") * std_dev)) \
-           .withColumn("bollinger_lower",
-                      col("bollinger_middle") - (col("price_stddev") * std_dev))
+    df = df.withColumn(
+        "bollinger_upper", col("bollinger_middle") + (col("price_stddev") * std_dev)
+    ).withColumn(
+        "bollinger_lower", col("bollinger_middle") - (col("price_stddev") * std_dev)
+    )
 
     # 不要カラム削除
     df = df.drop("price_stddev")
@@ -226,8 +276,7 @@ def calculate_bollinger_bands(df: DataFrame, period: int = 20, std_dev: float = 
 
 
 def calculate_atr(df: DataFrame, period: int = 14) -> DataFrame:
-    """
-    ATR (Average True Range) 計算
+    """ATR (Average True Range) 計算
 
     Args:
         df: 株価データ
@@ -243,14 +292,16 @@ def calculate_atr(df: DataFrame, period: int = 14) -> DataFrame:
     # True Range計算
     df = df.withColumn("prev_close", lag("close_price").over(window_spec))
 
-    df = df.withColumn("tr1", col("high_price") - col("low_price")) \
-           .withColumn("tr2", spark_abs(col("high_price") - col("prev_close"))) \
-           .withColumn("tr3", spark_abs(col("low_price") - col("prev_close")))
+    df = (
+        df.withColumn("tr1", col("high_price") - col("low_price"))
+        .withColumn("tr2", spark_abs(col("high_price") - col("prev_close")))
+        .withColumn("tr3", spark_abs(col("low_price") - col("prev_close")))
+    )
 
     df = df.withColumn("true_range", greatest("tr1", "tr2", "tr3"))
 
     # ATR (True Rangeの移動平均)
-    atr_window = window_spec.rowsBetween(-(period-1), 0)
+    atr_window = window_spec.rowsBetween(-(period - 1), 0)
     df = df.withColumn("atr_14d", avg("true_range").over(atr_window))
 
     # 不要カラム削除
@@ -260,8 +311,7 @@ def calculate_atr(df: DataFrame, period: int = 14) -> DataFrame:
 
 
 def calculate_volume_indicators(df: DataFrame) -> DataFrame:
-    """
-    出来高系指標計算
+    """出来高系指標計算
 
     Args:
         df: 株価データ
@@ -278,17 +328,18 @@ def calculate_volume_indicators(df: DataFrame) -> DataFrame:
     df = df.withColumn("volume_sma_20d", avg("volume").over(volume_window))
 
     # 出来高比率（当日出来高 / 20日平均出来高）
-    df = df.withColumn("volume_ratio",
-                      when(col("volume_sma_20d") > 0,
-                           col("volume") / col("volume_sma_20d"))
-                      .otherwise(1.0))
+    df = df.withColumn(
+        "volume_ratio",
+        when(
+            col("volume_sma_20d") > 0, col("volume") / col("volume_sma_20d")
+        ).otherwise(1.0),
+    )
 
     return df
 
 
 def calculate_momentum_indicators(df: DataFrame) -> DataFrame:
-    """
-    モメンタム・ボラティリティ指標計算
+    """モメンタム・ボラティリティ指標計算
 
     Args:
         df: 株価データ
@@ -301,24 +352,33 @@ def calculate_momentum_indicators(df: DataFrame) -> DataFrame:
     window_spec = Window.partitionBy("symbol").orderBy("trade_date")
 
     # 価格モメンタム（リターン）
-    df = df.withColumn("price_5d_ago", lag("close_price", 5).over(window_spec)) \
-           .withColumn("price_20d_ago", lag("close_price", 20).over(window_spec))
+    df = df.withColumn(
+        "price_5d_ago", lag("close_price", 5).over(window_spec)
+    ).withColumn("price_20d_ago", lag("close_price", 20).over(window_spec))
 
-    df = df.withColumn("price_momentum_5d",
-                      when(col("price_5d_ago") > 0,
-                           (col("close_price") - col("price_5d_ago")) / col("price_5d_ago"))
-                      .otherwise(None)) \
-           .withColumn("price_momentum_20d",
-                      when(col("price_20d_ago") > 0,
-                           (col("close_price") - col("price_20d_ago")) / col("price_20d_ago"))
-                      .otherwise(None))
+    df = df.withColumn(
+        "price_momentum_5d",
+        when(
+            col("price_5d_ago") > 0,
+            (col("close_price") - col("price_5d_ago")) / col("price_5d_ago"),
+        ).otherwise(None),
+    ).withColumn(
+        "price_momentum_20d",
+        when(
+            col("price_20d_ago") > 0,
+            (col("close_price") - col("price_20d_ago")) / col("price_20d_ago"),
+        ).otherwise(None),
+    )
 
     # 価格ボラティリティ（20日間の日次リターンの標準偏差）
-    df = df.withColumn("daily_return",
-                      when(lag("close_price").over(window_spec) > 0,
-                           (col("close_price") - lag("close_price").over(window_spec)) /
-                           lag("close_price").over(window_spec))
-                      .otherwise(None))
+    df = df.withColumn(
+        "daily_return",
+        when(
+            lag("close_price").over(window_spec) > 0,
+            (col("close_price") - lag("close_price").over(window_spec))
+            / lag("close_price").over(window_spec),
+        ).otherwise(None),
+    )
 
     volatility_window = window_spec.rowsBetween(-19, 0)
     df = df.withColumn("volatility_20d", stddev("daily_return").over(volatility_window))
@@ -330,8 +390,7 @@ def calculate_momentum_indicators(df: DataFrame) -> DataFrame:
 
 
 def select_technical_features(df: DataFrame) -> DataFrame:
-    """
-    テクニカル指標カラムのみ選択し、Gold層スキーマに整形
+    """テクニカル指標カラムのみ選択し、Gold層スキーマに整形
 
     Args:
         df: 全カラム付きデータ
@@ -368,15 +427,14 @@ def select_technical_features(df: DataFrame) -> DataFrame:
         col("price_momentum_5d").cast(DecimalType(6, 4)),
         col("price_momentum_20d").cast(DecimalType(6, 4)),
         col("volatility_20d").cast(DecimalType(6, 4)),
-        current_timestamp().alias("feature_timestamp")
+        current_timestamp().alias("feature_timestamp"),
     )
 
     return gold_df
 
 
 def save_to_gold_table(spark: SparkSession, df: DataFrame, table_name: str) -> bool:
-    """
-    Gold層テーブルに保存
+    """Gold層テーブルに保存
 
     Args:
         spark: SparkSession
@@ -393,6 +451,7 @@ def save_to_gold_table(spark: SparkSession, df: DataFrame, table_name: str) -> b
 
         # パーティションカラム追加
         from pyspark.sql.functions import year
+
         df_with_partitions = df.withColumn("year", year("feature_date"))
 
         # Delta Lake共通ライブラリを使用
@@ -405,11 +464,11 @@ def save_to_gold_table(spark: SparkSession, df: DataFrame, table_name: str) -> b
             mode="merge",
             partition_cols=["year", "symbol"],
             merge_keys=["symbol", "feature_date"],
-            spark=spark
+            spark=spark,
         )
 
     except Exception as e:
-        logger.error(f"Error saving to gold table: {str(e)}")
+        logger.error(f"Error saving to gold table: {e!s}")
         return False
 
 
@@ -419,29 +478,35 @@ def create_gold_schema(spark: SparkSession):
         spark.sql("CREATE SCHEMA IF NOT EXISTS gold")
         logger.info("Gold schema created/verified")
     except Exception as e:
-        logger.error(f"Error creating gold schema: {str(e)}")
+        logger.error(f"Error creating gold schema: {e!s}")
 
 
 def main():
     """メイン処理"""
-    parser = argparse.ArgumentParser(description='Technical Features Calculation')
-    parser.add_argument('--input_table', required=True, help='入力テーブル名 (silver layer)')
-    parser.add_argument('--output_table', required=True, help='出力テーブル名 (gold layer)')
-    parser.add_argument('--indicators', default='sma,ema,rsi,macd,bollinger,atr',
-                       help='計算する指標 (カンマ区切り)')
+    parser = argparse.ArgumentParser(description="Technical Features Calculation")
+    parser.add_argument(
+        "--input_table", required=True, help="入力テーブル名 (silver layer)"
+    )
+    parser.add_argument(
+        "--output_table", required=True, help="出力テーブル名 (gold layer)"
+    )
+    parser.add_argument(
+        "--indicators",
+        default="sma,ema,rsi,macd,bollinger,atr",
+        help="計算する指標 (カンマ区切り)",
+    )
 
     args = parser.parse_args()
 
     # 指標リスト解析
-    indicators = [ind.strip().lower() for ind in args.indicators.split(',')]
+    indicators = [ind.strip().lower() for ind in args.indicators.split(",")]
 
-    logger.info(f"Starting technical features calculation: {args.input_table} -> {args.output_table}")
+    logger.info(
+        f"Starting technical features calculation: {args.input_table} -> {args.output_table}"
+    )
     logger.info(f"Indicators: {indicators}")
 
     # Sparkセッション開始（既存のセッションまたは新規作成）
-    # spark = SparkSession.getActiveSession()
-    # if spark is None:
-    #     spark = get_spark_session(SparkSession)
     spark = SparkSession.builder.getOrCreate()
 
     try:
@@ -451,27 +516,35 @@ def main():
         try:
             spark.sql("CREATE SCHEMA IF NOT EXISTS silver")
             spark.sql("USE silver")  # スキーマを明示的に選択
-            logger.info("Silver schema created/verified (for Delta Lake table creation)")
+            logger.info(
+                "Silver schema created/verified (for Delta Lake table creation)"
+            )
         except Exception as e:
-            logger.error(f"Error creating silver schema: {str(e)}")
+            logger.error(f"Error creating silver schema: {e!s}")
 
         # Silver層データ読み込み（Delta Lake共通ライブラリ使用）
         logger.info(f"Reading data from {args.input_table}")
         if not spark.catalog.tableExists(args.input_table):
-            logger.warning(f"Table {args.input_table} does not exist, trying to create it from Delta Lake path")
+            logger.warning(
+                f"Table {args.input_table} does not exist, trying to create it from Delta Lake path"
+            )
             table_path = "s3a://lakehouse/silver/stock_prices/"
             try:
                 silver_df = spark.read.format("delta").load(table_path)
-                logger.info(f"Successfully read data from Delta Lake path: {table_path}")
+                logger.info(
+                    f"Successfully read data from Delta Lake path: {table_path}"
+                )
                 spark.sql(f"DROP TABLE IF EXISTS {args.input_table}")
                 spark.sql(f"""
                     CREATE TABLE {args.input_table}
                     USING DELTA
                     LOCATION '{table_path}'
                 """)
-                logger.info(f"Created Hive table {args.input_table} pointing to {table_path}")
+                logger.info(
+                    f"Created Hive table {args.input_table} pointing to {table_path}"
+                )
             except Exception as e:
-                logger.error(f"Failed to read from Delta Lake path {table_path}: {str(e)}")
+                logger.error(f"Failed to read from Delta Lake path {table_path}: {e!s}")
                 return 1
         else:
             silver_df = read_from_delta_table(args.input_table, spark)
@@ -486,19 +559,19 @@ def main():
         # 各指標を順次計算
         features_df = silver_df
 
-        if 'sma' in indicators or 'ema' in indicators:
+        if "sma" in indicators or "ema" in indicators:
             features_df = calculate_moving_averages(features_df)
 
-        if 'rsi' in indicators:
+        if "rsi" in indicators:
             features_df = calculate_rsi(features_df)
 
-        if 'macd' in indicators:
+        if "macd" in indicators:
             features_df = calculate_macd(features_df)
 
-        if 'bollinger' in indicators:
+        if "bollinger" in indicators:
             features_df = calculate_bollinger_bands(features_df)
 
-        if 'atr' in indicators:
+        if "atr" in indicators:
             features_df = calculate_atr(features_df)
 
         # 出来高・モメンタム指標は常に計算
@@ -533,12 +606,11 @@ def main():
             result_stats.show()
 
             return 0
-        else:
-            logger.error("Failed to save to gold table")
-            return 1
+        logger.error("Failed to save to gold table")
+        return 1
 
     except Exception as e:
-        logger.error(f"Fatal error in technical features calculation: {str(e)}")
+        logger.error(f"Fatal error in technical features calculation: {e!s}")
         return 1
 
     finally:

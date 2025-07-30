@@ -29,7 +29,6 @@ from pyspark.sql.functions import sum as spark_sum
 
 sys.path.append("/opt/airflow/scripts")
 from common.delta_utils import read_from_delta_table, write_to_delta_table
-from common.spark_session import get_spark_session
 
 # ログ設定
 logging.basicConfig(

@@ -56,7 +56,6 @@ from pyspark.sql.types import (
 
 sys.path.append("/opt/airflow/scripts")
 from common.delta_utils import read_from_delta_table, write_to_delta_table
-from common.spark_session import get_spark_session
 
 # ログ設定
 logging.basicConfig(
@@ -405,8 +404,9 @@ def create_bronze_schema(spark: SparkSession):
         logger.error(f"Error creating bronze schema: {e!s}")
 
 
-def main():
-    """メイン処理"""
+def main() -> int:
+    """メイン処理."""
+    # 引数を取得.
     parser = argparse.ArgumentParser(description="Stock Data Cleaning")
     parser.add_argument("--input_table", required=True, help="入力テーブル名")
     parser.add_argument("--output_table", required=True, help="出力テーブル名")
@@ -416,59 +416,26 @@ def main():
         default=0.8,
         help="品質閾値 (デフォルト: 0.8)",
     )
-
     args = parser.parse_args()
 
-    logger.info(
-        f"Starting stock data cleaning: {args.input_table} -> {args.output_table}"
-    )
-    logger.info(f"Quality threshold: {args.quality_threshold}")
+    # 引数を解析.
+    input_table = str(args.input_table)
+    output_table = str(args.output_table)
+    quality_threshold = str(args.quality_threshold)
 
-    # Sparkセッション開始（既存のセッションまたは新規作成）
+    # Sparkセッションを取得.
     spark = SparkSession.builder.getOrCreate()
-    # spark = SparkSession.getActiveSession()
-    # if spark is None:
-    #     spark = get_spark_session(SparkSession)
 
     try:
-        # Bronze スキーマ作成
-        create_bronze_schema(spark)
-        # Silver スキーマ作成
-        create_silver_schema(spark)
-
-        # Bronze層データ読み込み
-        logger.info(f"Reading data from {args.input_table}")
-
-        # テーブル存在確認
-        if not spark.catalog.tableExists(args.input_table):
-            logger.warning(
-                f"Table {args.input_table} does not exist, trying to create it from Delta Lake path"
+        # Bronzeレイヤのテーブルを存在確認.
+        if not spark.catalog.tableExists(input_table):
+            logger.error(
+                'Table "%s" does not exist.',
+                input_table,
             )
+            return 1
 
-            # Bronze層のDelta Lakeパスから直接読み込み
-            table_path = "s3a://lakehouse/bronze/yfinance/"
-            try:
-                bronze_df = spark.read.format("delta").load(table_path)
-                logger.info(
-                    f"Successfully read data from Delta Lake path: {table_path}"
-                )
-
-                # 今後のためにHiveテーブルを作成
-                spark.sql(f"DROP TABLE IF EXISTS {args.input_table}")
-                spark.sql(f"""
-                    CREATE TABLE {args.input_table}
-                    USING DELTA
-                    LOCATION '{table_path}'
-                """)
-                logger.info(
-                    f"Created Hive table {args.input_table} pointing to {table_path}"
-                )
-
-            except Exception as e:
-                logger.error(f"Failed to read from Delta Lake path {table_path}: {e!s}")
-                return 1
-        else:
-            bronze_df = read_from_delta_table(args.input_table, spark)
+        bronze_df = read_from_delta_table(input_table, spark)
 
         if bronze_df is None:
             logger.error(f"Failed to read data from {args.input_table}")

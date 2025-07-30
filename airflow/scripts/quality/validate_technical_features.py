@@ -38,7 +38,6 @@ from pyspark.sql.functions import sum as spark_sum
 
 sys.path.append("/opt/airflow/scripts")
 from common.delta_utils import read_from_delta_table, write_to_delta_table
-from common.spark_session import get_spark_session
 
 # ログ設定
 logging.basicConfig(
@@ -564,8 +563,6 @@ def main():
 
     # Sparkセッション開始（既存のセッションまたは新規作成）
     spark = SparkSession.getActiveSession()
-    if spark is None:
-        spark = get_spark_session(SparkSession)
 
     try:
         # データ読み込み（Delta Lake共通ライブラリ使用）

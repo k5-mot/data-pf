@@ -46,7 +46,7 @@ with DAG(
         task_id="start_dag",
         doc_md="""
         - Step.0 Start:    Notify the start of DAG.
-        - Step.1 Bronze:   Fetch raw data from yfinance API.
+        - Step.1 Bronze:   Data Ingestion.
         - Step.2 Silver:   Clean and validate stock data.
         - Step.3 Gold:     Calculate technical indicators.
         - Step.4 Validate: Validate technical indicators.
@@ -65,36 +65,36 @@ with DAG(
             "--period",
             "30d",  # 過去30日分
             "--output_table",
-            "bronze.yfinance_raw",
+            "bronze.raw_yfinance",
         ],
     )
 
     # 品質検証: テクニカル指標の妥当性確認
-    validate_data_quality = SparkSubmitOperator(
-        task_id="validate_data_quality",
-        application="/opt/airflow/scripts/quality/validate_technical_features.py",
-        conn_id="spark_default",
-        application_args=[
-            "--input_table",
-            "gold.technical_features",
-            "--validation_rules",
-            "/opt/airflow/config/technical_validation_rules.yaml",
-        ],
-        doc_md="""
-        ### テクニカル指標品質検証タスク
+    # validate_data_quality = SparkSubmitOperator(
+    #     task_id="validate_data_quality",
+    #     application="/opt/airflow/scripts/quality/validate_technical_features.py",
+    #     conn_id="spark_default",
+    #     application_args=[
+    #         "--input_table",
+    #         "gold.technical_features",
+    #         "--validation_rules",
+    #         "/opt/airflow/config/technical_validation_rules.yaml",
+    #     ],
+    #     doc_md="""
+    #     ### テクニカル指標品質検証タスク
 
-        計算されたテクニカル指標の品質を検証します。
+    #     計算されたテクニカル指標の品質を検証します。
 
-        **検証項目:**
-        - 指標値の範囲チェック（RSI: 0-100等）
-        - 移動平均の順序関係確認
-        - ボリンジャーバンドの上下関係
-        - 異常値・外れ値の検出
-        - データ完整性の確認
+    #     **検証項目:**
+    #     - 指標値の範囲チェック（RSI: 0-100等）
+    #     - 移動平均の順序関係確認
+    #     - ボリンジャーバンドの上下関係
+    #     - 異常値・外れ値の検出
+    #     - データ完整性の確認
 
-        **アラート:** 品質問題検出時にSlack通知
-        """,
-    )
+    #     **アラート:** 品質問題検出時にSlack通知
+    #     """,
+    # )
 
     ## Step.2 Silver:   Clean and validate stock data.
     clean_and_validate_data = SparkSubmitOperator(
@@ -103,9 +103,9 @@ with DAG(
         conn_id="spark_default",
         application_args=[
             "--input_table",
-            "bronze.yfinance_raw",
+            "bronze.raw_finance",
             "--output_table",
-            "silver.stock_prices_clean",
+            "silver.clean_stock",
             "--quality_threshold",
             "0.8",
         ],
@@ -209,7 +209,6 @@ with DAG(
     (
         start_dag
         >> ingest_raw_data
-        >> validate_data_quality
         >> clean_and_validate_data
         >> aggregate_business_metrics
         >> engineer_features

@@ -9,17 +9,12 @@ Usage:
 
 import argparse
 import logging
-
-# 既存のspark_session.pyを使用
-import os
 import sys
 from datetime import date, datetime
-from typing import List, Optional
 
 import pandas as pd
 import yfinance as yf
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import current_timestamp, lit, year
 from pyspark.sql.types import (
     DateType,
     DoubleType,
@@ -31,8 +26,8 @@ from pyspark.sql.types import (
 )
 
 sys.path.append("/opt/airflow/scripts")
-from common.delta_utils import create_delta_table_if_not_exists, write_to_delta_table
-from common.spark_session import get_spark_session
+sys.path.append("..")
+# from common.delta_utils import create_delta_table_if_not_exists, write_to_delta_table
 
 # ログ設定
 logging.basicConfig(
@@ -42,27 +37,27 @@ logger = logging.getLogger(__name__)
 
 
 def define_yfinance_schema() -> StructType:
-    """yfinanceデータのスキーマ定義"""
+    """yfinanceデータのスキーマ定義."""
     return StructType(
         [
-            StructField("symbol", StringType(), False),
-            StructField("date", DateType(), False),
-            StructField("open", DoubleType(), True),
-            StructField("high", DoubleType(), True),
-            StructField("low", DoubleType(), True),
-            StructField("close", DoubleType(), True),
-            StructField("adj_close", DoubleType(), True),
-            StructField("volume", LongType(), True),
-            StructField("splits", DoubleType(), True),
-            StructField("dividends", DoubleType(), True),
-            StructField("ingestion_timestamp", TimestampType(), False),
-            StructField("source_file", StringType(), True),
+            StructField("symbol", StringType(), nullable=False),
+            StructField("date", DateType(), nullable=False),
+            StructField("open", DoubleType(), nullable=True),
+            StructField("high", DoubleType(), nullable=True),
+            StructField("low", DoubleType(), nullable=True),
+            StructField("close", DoubleType(), nullable=True),
+            StructField("adj_close", DoubleType(), nullable=True),
+            StructField("volume", LongType(), nullable=True),
+            StructField("splits", DoubleType(), nullable=True),
+            StructField("dividends", DoubleType(), nullable=True),
+            StructField("ingestion_timestamp", TimestampType(), nullable=False),
+            StructField("source_file", StringType(), nullable=True),
         ]
     )
 
 
-def fetch_yfinance_data(symbol: str, period: str) -> pd.DataFrame | None:
-    """yfinanceから株価データを取得
+def fetch_from_yfinance(symbol: str, period: str) -> pd.DataFrame | None:
+    """yfinanceから株価データを取得.
 
     Args:
         symbol: 銘柄コード (例: AAPL, 7203.T)
@@ -72,60 +67,58 @@ def fetch_yfinance_data(symbol: str, period: str) -> pd.DataFrame | None:
         pandas.DataFrame: 株価データ
     """
     try:
-        logger.info(f"Fetching data for symbol: {symbol}, period: {period}")
-
-        # yfinanceでデータ取得
+        # 銘柄を指定.
         ticker = yf.Ticker(symbol)
 
-        # 履歴データ取得
-        hist_data = ticker.history(
+        # 過去の株価データを取得.
+        df = ticker.history(
             period=period,
-            auto_adjust=False,  # 調整前価格も取得
-            prepost=False,  # プレ・アフターマーケット除外
-            actions=True,  # 分割・配当情報含む
+            auto_adjust=True,  # 調整後終値は含む.
+            prepost=False,  # 時間外取引は除く.
+            actions=True,  # 分割・配当情報は含む.
         )
 
-        if hist_data.empty:
-            logger.warning(f"No data found for symbol: {symbol}")
+        # データフレームが空でないか確認.
+        if df is None or df.empty:
+            msg = f"No data found for symbol: {symbol}"
+            logger.error(msg)
             return None
 
         # インデックス（日付）をカラムに変換
-        hist_data.reset_index(inplace=True)
+        df = df.reset_index()
 
         # カラム名を標準化
-        hist_data.columns = [col.lower().replace(" ", "_") for col in hist_data.columns]
+        df.columns = [col.lower().replace(" ", "_") for col in df.columns]
 
         # 必要なカラムのみ選択・リネーム
-        if "date" not in hist_data.columns and "datetime" in hist_data.columns:
-            hist_data["date"] = hist_data["datetime"].dt.date
-        elif "date" in hist_data.columns:
+        if "date" not in df.columns and "datetime" in df.columns:
+            df["date"] = df["datetime"].dt.date
+        elif "date" in df.columns:
             # date列がdatetime型の場合、日付のみに変換
-            if pd.api.types.is_datetime64_any_dtype(hist_data["date"]):
-                hist_data["date"] = hist_data["date"].dt.date
+            if pd.api.types.is_datetime64_any_dtype(df["date"]):
+                df["date"] = df["date"].dt.date
 
         # 必要なカラムを確認・追加
         required_columns = ["open", "high", "low", "close", "adj_close", "volume"]
         for col in required_columns:
-            if col not in hist_data.columns:
-                hist_data[col] = None
+            if col not in df.columns:
+                df[col] = None
 
         # 分割・配当情報がない場合は0で埋める
-        if "stock_splits" in hist_data.columns:
-            hist_data["splits"] = hist_data["stock_splits"]
+        if "stock_splits" in df.columns:
+            df["splits"] = df["stock_splits"]
         else:
-            hist_data["splits"] = 0.0
+            df["splits"] = 0.0
 
-        if "dividends" not in hist_data.columns:
-            hist_data["dividends"] = 0.0
+        if "dividends" not in df.columns:
+            df["dividends"] = 0.0
 
         # シンボル情報追加
-        hist_data["symbol"] = symbol
+        df["symbol"] = symbol
 
         # メタデータ追加
-        hist_data["ingestion_timestamp"] = datetime.now()
-        hist_data["source_file"] = (
-            f"yfinance_{symbol}_{period}_{date.today().isoformat()}"
-        )
+        df["ingestion_timestamp"] = datetime.now()
+        df["source_file"] = f"yfinance_{symbol}_{period}_{date.today().isoformat()}"
 
         # 必要なカラムのみ選択
         final_columns = [
@@ -143,7 +136,7 @@ def fetch_yfinance_data(symbol: str, period: str) -> pd.DataFrame | None:
             "source_file",
         ]
 
-        result_df = hist_data[final_columns].copy()
+        result_df = df[final_columns].copy()
 
         logger.info(f"Successfully fetched {len(result_df)} records for {symbol}")
         return result_df
@@ -208,51 +201,66 @@ def save_to_delta_table(spark: SparkSession, df: pd.DataFrame, table_name: str) 
         return False
 
 
-def create_hive_table_for_delta(spark: SparkSession, table_name: str, table_path: str):
-    """Delta LakeパスをポイントするHiveテーブルを作成
-
-    Args:
-        spark: SparkSession
-        table_name: テーブル名 (例: bronze.yfinance_raw)
-        table_path: Delta Lakeパス
-    """
+def ingest_yfinance_data(
+    symbol: str, period: str, output_table: str, spark: SparkSession
+) -> bool:
+    """yfinanceデータを取得し、bronze.yfinanceテーブルにsymbol/yearパーティションで保存."""
     try:
-        # テーブルが既に存在する場合は削除
-        spark.sql(f"DROP TABLE IF EXISTS {table_name}")
+        # yfinance APIからデータを取得
+        df = fetch_from_yfinance(symbol, period)
 
-        # Delta LakeパスをポイントするHiveテーブルを作成
-        spark.sql(f"""
-            CREATE TABLE {table_name}
-            USING DELTA
-            LOCATION '{table_path}'
-        """)
+        # データフレームが空でないか確認
+        if df is None or df.empty:
+            logger.warning(f"No data available for {symbol}")
+            return False
 
-        logger.info(f"Created Hive table {table_name} pointing to {table_path}")
+        # pandas DataFrame を Spark DataFrame に変換
+        spark_df = spark.createDataFrame(df, schema=define_yfinance_schema())
+
+        # yearカラムを追加
+        spark_df = spark_df.withColumn(
+            "year", spark_df.date.cast("date").cast("string").substr(1, 4)
+        )
+
+        # Delta Lakeテーブルパス.
+        table_path = "s3a://lakehouse/bronze/yfinance/"
+
+        # symbol/yearパーティションでDelta Lakeに保存
+        spark_df.write.format("delta").mode("append").partitionBy(
+            "symbol", "year"
+        ).save(table_path)
+
+        logger.info(
+            f"Successfully saved {spark_df.count()} records for {symbol} to {table_path}"
+        )
+
+        # bronze.yfinanceテーブルが存在しない場合は作成
+        try:
+            spark.sql("CREATE SCHEMA IF NOT EXISTS bronze")
+            spark.sql(f"""
+                CREATE TABLE IF NOT EXISTS {output_table}
+                USING DELTA
+                LOCATION '{table_path}'
+            """)
+            logger.info(f"Created/updated table {output_table}")
+        except Exception as table_error:
+            logger.warning(f"Table creation warning: {table_error}")
+
+        return True
 
     except Exception as e:
-        logger.error(f"Error creating Hive table {table_name}: {e!s}")
-        raise
-
-    # _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-yfinance pandas pyspark delta JPype1 jaydebeapi apache-airflow[crypto,celery,postgres,hive,jdbc,mysql,spark,ssh,redis,statsd,slack,atlas]}
+        logger.error(f"Error in data ingestion for {symbol}: {e}")
+        return False
 
 
-def create_bronze_schema(spark: SparkSession):
-    """Bronze スキーマ作成"""
-    try:
-        spark.sql("CREATE SCHEMA IF NOT EXISTS bronze")
-        logger.info("Bronze schema created/verified")
-    except Exception as e:
-        logger.error(f"Error creating bronze schema: {e!s}")
-
-
-def main():
+def main() -> int:
     """メイン処理."""
     # 引数を取得.
     parser = argparse.ArgumentParser(description="YFinance Data Ingestion")
     parser.add_argument(
         "--symbols", required=True, help="カンマ区切りの銘柄コード (例: AAPL,7203.T)"
     )
-    parser.add_argument("--period", default="30d", help="取得期間 (デフォルト: 30d)")
+    parser.add_argument("--period", default="1d", help="取得期間 (デフォルト: 1d)")
     parser.add_argument(
         "--output_table", default="bronze.yfinance_raw", help="出力テーブル名"
     )
@@ -260,8 +268,8 @@ def main():
 
     # 引数を解析.
     symbols = [symbol.strip() for symbol in args.symbols.split(",")]
-    period = args.period
-    output_table = args.output_table
+    period = str(args.period)
+    output_table = str(args.output_table)
 
     # Sparkセッションを取得.
     spark = SparkSession.builder.getOrCreate()
@@ -276,48 +284,49 @@ def main():
 
         for symbol in symbols:
             # データ取得
-            df = fetch_yfinance_data(symbol, period)
+            df = fetch_from_yfinance(symbol, period)
+            print(df)
 
-            if df is not None and not df.empty:
-                total_records += len(df)
-                # Delta Lake保存
-                if save_to_delta_table(spark, df, output_table):
-                    total_success += 1
-                    logger.info(f"Successfully processed {symbol}: {len(df)} records")
-                else:
-                    logger.warning(
-                        f"Data fetched but save failed for {symbol}: {len(df)} records"
-                    )
-            else:
-                logger.warning(f"No data available for {symbol}")
+        #     if df is not None and not df.empty:
+        #         total_records += len(df)
+        #         # Delta Lake保存
+        #         if save_to_delta_table(spark, df, output_table):
+        #             total_success += 1
+        #             logger.info(f"Successfully processed {symbol}: {len(df)} records")
+        #         else:
+        #             logger.warning(
+        #                 f"Data fetched but save failed for {symbol}: {len(df)} records"
+        #             )
+        #     else:
+        #         logger.warning(f"No data available for {symbol}")
 
-        # 結果サマリー
-        logger.info(
-            f"Ingestion completed: {total_success}/{len(symbols)} symbols successful"
-        )
-        logger.info(f"Total records processed: {total_records}")
+        # # 結果サマリー
+        # logger.info(
+        #     f"Ingestion completed: {total_success}/{len(symbols)} symbols successful"
+        # )
+        # logger.info(f"Total records processed: {total_records}")
 
-        # テーブル統計表示
-        if total_success > 0:
-            try:
-                # Deltaテーブルを直接読み取り
-                table_path = "s3a://lakehouse/bronze/yfinance/"
-                result_df = spark.read.format("delta").load(table_path)
-                symbol_counts = result_df.groupBy("symbol").count()
-                logger.info("Table statistics:")
-                symbol_counts.show()
-            except Exception as stats_error:
-                logger.warning(f"Could not retrieve table statistics: {stats_error!s}")
+        # # テーブル統計表示
+        # if total_success > 0:
+        #     try:
+        #         # Deltaテーブルを直接読み取り
+        #         table_path = "s3a://lakehouse/bronze/yfinance/"
+        #         result_df = spark.read.format("delta").load(table_path)
+        #         symbol_counts = result_df.groupBy("symbol").count()
+        #         logger.info("Table statistics:")
+        #         symbol_counts.show()
+        #     except Exception as stats_error:
+        #         logger.warning(f"Could not retrieve table statistics: {stats_error!s}")
 
-        # 少なくとも一部のデータが取得できていれば成功とする
-        total_fetched = len(symbols) <= total_records
-        if total_fetched:
-            logger.info(
-                f"Data fetching successful even if save failed. Records fetched: {total_records}"
-            )
-            return 0
-        logger.error("No data could be fetched from any symbol")
-        return 1
+        # # 少なくとも一部のデータが取得できていれば成功とする
+        # total_fetched = len(symbols) <= total_records
+        # if total_fetched:
+        #     logger.info(
+        #         f"Data fetching successful even if save failed. Records fetched: {total_records}"
+        #     )
+        #     return 0
+        # logger.error("No data could be fetched from any symbol")
+        # return 1
 
     except Exception as e:
         logger.error(f"Fatal error in main process: {e!s}")
